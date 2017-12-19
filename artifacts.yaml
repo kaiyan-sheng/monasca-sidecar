@@ -1,0 +1,19 @@
+#
+# (C) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Confidential computer software. Valid license from HP required for
+# possession, use or copying. Consistent with FAR 12.211 and 12.212,
+# Commercial Computer Software, Computer Software Documentation, and
+# Technical Data for Commercial Items are licensed to the U.S. Government
+# under vendor's standard commercial license.
+#
+---
+
+# integration_repo: 'ncs/deployment'
+# integration_branch: 'master_alpha'
+
+publish_aws: true
+
+images:
+
+  - name: monasca/monasca-sidecar
