@@ -11,6 +11,11 @@ fast:
 depend:
 	glide install
 
+test: $(NAME)
+	@echo -e "\nRunning all go tests:"
+	@echo -e "------------------------------------------------------------------------"
+    export NOLOGGING=true; go test $$(go list ./... | grep -v /vendor/)
+
 clean:
 	rm -rf ./vendor
 	rm ./bin/$(NAME)
