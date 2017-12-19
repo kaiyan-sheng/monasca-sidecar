@@ -1,36 +1,24 @@
-# (C) Copyright 2017 Hewlett Packard Enterprise Development LP
+FROM hub.docker.hpecorp.net/protobuf-example/go-build:v0.2.0 as builder
+ENV project /go/src/github.hpe.com/monasca/monasca-sidecar
 
-FROM alpine:3.6 as go-builder
+COPY . $project
+WORKDIR $project
 
-ARG SIDECAR_REPO=https://github.hpe.com/monasca/monasca-sidecar
-ARG SIDECAR_BRANCH=master
+RUN make depend && make && mv ./bin/monasca-sidecar /
 
-ENV GOPATH=/go CGO_ENABLED=0 GOOS=linux
+FROM alpine:3.6 as certs
 
-# To force a rebuild, pass --build-arg REBUILD="$(DATE)" when running
-# `docker build`
-ARG REBUILD=1
+RUN apk --update --no-cache add \
+    ca-certificates
 
-RUN apk add --no-cache git go glide make g++ openssl-dev musl-dev
-RUN mkdir -p $GOPATH/src/github.hpe.com/monasca/monasca-sidecar
+COPY --from=builder /monasca-sidecar /
 
-WORKDIR $GOPATH/src/github.hpe.com/monasca/monasca-sidecar
+ENTRYPOINT ["/monasca-sidecar"]
 
-RUN git init && \
-    git remote add origin $SIDECAR_REPO && \
-    git fetch origin $SIDECAR_BRANCH && \
-    git reset --hard FETCH_HEAD
+ARG TAG
+ARG GIT_SHA
+ARG BUILD_DATE
 
-RUN glide install && \
-    go build -a -o ./sidecar
-
-FROM alpine:3.6
-
-RUN apk add --no-cache ca-certificates tini
-
-COPY --from=go-builder \
-    /go/src/github.hpe.com/monasca/monasca-sidecar/sidecar \
-    /sidecar
-
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/sidecar"]ILD_DATE $BUILD_DATE
+ENV TAG $TAG
+ENV GIT_SHA $GIT_SHA
+ENV BUILD_DATE $BUILD_DATE
