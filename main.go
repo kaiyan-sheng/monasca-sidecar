@@ -193,15 +193,6 @@ func findOldValue(oldPrometheusMetrics []PrometheusMetric, newDimensions []Dimen
 	return ""
 }
 
-func dimensionsToString(dimensions []Dimension) string {
-	dimString := `{`
-	for _, dim := range (dimensions) {
-		dimString += dim.Key + "=" + dim.Value + ","
-	}
-	dimString += dimString[0:len(dimString)-1] + "}"
-	return dimString
-}
-
 func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, oldRateMetricString) // send data to client side
 }
