@@ -1,2 +1,4 @@
 .gitignore
 glide.lock
+Dockerfile
+Makefile
