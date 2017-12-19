@@ -26,3 +26,18 @@ func stringBetween(value string, a string, b string) string {
 	}
 	return value[posFirstAdjusted:posLast]
 }
+
+func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
+	prefix := "http://localhost"
+	if prometheusPath == "/" {
+		prometheusUrl := prefix + ":" + prometheusPort
+		return prometheusUrl
+	}
+	if strings.HasSuffix(prometheusPath, "/") {
+		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
+		prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+		return prometheusUrl
+	}
+	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+	return prometheusUrl
+}

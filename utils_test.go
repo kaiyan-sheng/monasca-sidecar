@@ -58,3 +58,26 @@ func TestGetSubStringWithDuplicateChars(t *testing.T) {
 	subString2 := stringBetween(testString2, start2, end2)
 	assert.Equal(t, "bc", subString2)
 }
+
+func TestGetPrometheusUrl(t *testing.T) {
+	prometheusPort :=  "5556"
+	prometheusPath1 := "/"
+	url1 := getPrometheusUrl(prometheusPort, prometheusPath1)
+	assert.Equal(t, "http://localhost:5556", url1)
+
+	prometheusPath2 := "/metrics"
+	url2 := getPrometheusUrl(prometheusPort, prometheusPath2)
+	assert.Equal(t, "http://localhost/metrics:5556", url2)
+
+	prometheusPath3 := "/metrics/"
+	url3 := getPrometheusUrl(prometheusPort, prometheusPath3)
+	assert.Equal(t, "http://localhost/metrics:5556", url3)
+
+	prometheusPath4 := "/support/metrics"
+	url4 := getPrometheusUrl(prometheusPort, prometheusPath4)
+	assert.Equal(t, "http://localhost/support/metrics:5556", url4)
+
+	prometheusPath5 := "/support/metrics/"
+	url5 := getPrometheusUrl(prometheusPort, prometheusPath5)
+	assert.Equal(t, "http://localhost/support/metrics:5556", url5)
+}

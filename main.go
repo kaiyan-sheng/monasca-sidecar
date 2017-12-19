@@ -223,18 +223,3 @@ func getPodAnnotations(namespace string, podName string) map[string]string {
 	}
 	return map[string]string{}
 }
-
-func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
-	prefix := "http://localhost"
-	if prometheusPath == "/" {
-		prometheusUrl := prefix + ":" + prometheusPort
-		return prometheusUrl
-	}
-	if strings.HasSuffix(prometheusPath, "/") {
-		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
-		prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
-		return prometheusUrl
-	}
-	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
-	return prometheusUrl
-}
