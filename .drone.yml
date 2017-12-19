@@ -8,11 +8,11 @@ pipeline:
     image: plugins/git
 
   check-copyright:
-      image: hub.docker.hpecorp.net/arta/copyright:v0.3.4
-      commands:
-        - check-copyright.sh
-      when:
-        event: [pull_request]
+    image: hub.docker.hpecorp.net/arta/copyright:v0.3.4
+    commands:
+      - check-copyright.sh
+    when:
+      event: [pull_request]
 
   build:
     image: hub.docker.hpecorp.net/protobuf-example/go-build:v0.2.0
