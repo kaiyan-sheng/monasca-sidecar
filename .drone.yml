@@ -1,18 +1,33 @@
+workspace:
+  base: /go
+  path: src/github.hpe.com/monasca/monasca-sidecar
+
 pipeline:
   clone:
     tags: true
     image: plugins/git
+
   check-copyright:
-    image: hub.docker.hpecorp.net/arta/copyright:v0.3.4
+      image: hub.docker.hpecorp.net/arta/copyright:v0.3.4
+      commands:
+        - check-copyright.sh
+      when:
+        event: [pull_request]
+
+  build:
+    image: hub.docker.hpecorp.net/protobuf-example/go-build:v0.2.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - check-copyright.sh
+      - make depend && make
+      - go test $(go list ./... | grep -v /vendor/)
     when:
-      event: [pull_request]
+      event: pull_request
 
   publish-container:
     group: deliver
     image: hub.docker.hpecorp.net/picasso/containerize:v1.6.2
-    secrets: [ DOCKER_USER, DOCKER_PASS ]
+    secrets: [ AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DOCKER_USER, DOCKER_PASS ]
     environment:
       - PUBLISH=true
     volumes:
@@ -21,19 +36,4 @@ pipeline:
       - containerize.sh
     when:
       # Tags will publish, PRs will just build
-      event: [ pull_request, tag ]
-
-  publish-container:
-    group: deliver
-    image: hub.docker.hpecorp.net/picasso/containerize:v1.6.2
-    secrets: [ DOCKER_USER, DOCKER_PASS ]
-    environment:
-      - PUBLISH=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    commands:
-      - containerize.sh
-    when:
-      branch: master
-      event: push
-
+      event: [ tag, pull_request ]
