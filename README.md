@@ -12,7 +12,6 @@ In helm/templates/deployment.yaml
         - name: SIDECAR_POD_NAME
           valueFrom:
             fieldRef:
-In helm/templates/deployment.yaml
               fieldPath: metadata.namespace
 ```
 
