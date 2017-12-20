@@ -23,3 +23,33 @@ In helm/templates/deployment.yaml
         sidecar/listen-port: "9999"
 ```
 
+3. Add another container into deployment.yaml
+In helm/templates/deployment.yaml
+```
+      - name: {{ template "name" . }}-sidecar-container
+        image: "{{ .Values.sidecar_container.image.repository }}:{{ .Values.sidecar_container.image.tag }}"
+        imagePullPolicy: {{ .Values.sidecar_container.image.pullPolicy }}
+        resources:
+{{ toYaml .Values.sidecar_container.resources | indent 10 }}
+        ports:
+          - containerPort: 9999
+            name: scrape-sidecar
+```
+
+4. Add values for sidecar container
+In values.yaml
+```
+sidecar_container:
+  enabled: true
+  image:
+    repository: monasca/monasca-sidecar
+    tag: latest
+    pullPolicy: Always
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
+      cpu: 100m
+```
