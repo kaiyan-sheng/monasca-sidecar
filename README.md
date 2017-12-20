@@ -37,8 +37,8 @@ In values.yaml
 ```
 sidecar_container:
   image:
-    repository: monasca/monasca-sidecar
-    tag: latest
+    repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
+    tag: 0.0.0-5db69aea51236b
     pullPolicy: Always
   resources:
     requests:
