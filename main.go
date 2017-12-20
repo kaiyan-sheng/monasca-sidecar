@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 	"strconv"
-	"crypto/sha256"
 	"bytes"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	log "github.hpe.com/kronos/kelog"
 )
 
 type Dimension struct {
@@ -29,6 +29,7 @@ type PrometheusMetric struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 	Dimensions DimensionList `json:"dimensions"`
+	DimensionHash []byte `json:"hashcode"`
 }
 
 var oldRateMetricString = ``
@@ -38,38 +39,74 @@ func main() {
 	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
 	if !ok {
 		fmt.Printf("%s not set\n", "SIDECAR_POD_NAMESPACE")
-	} else {
-		fmt.Printf("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
+		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
+		os.Exit(1)
 	}
 
 	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
 	if !ok {
 		fmt.Printf("%s not set\n", "SIDECAR_POD_NAME")
-	} else {
-		fmt.Printf("%s=%s\n", "SIDECAR_POD_NAME", podName)
+		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
+		os.Exit(1)
 	}
 
+	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAME", podName)
+	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
+
+	//get annotations from pod kube config
 	annotations := getPodAnnotations(podNamespace, podName)
 	scrape := annotations["prometheus.io/scrape"]
 	if scrape != "true" {
 		fmt.Println("Scrape prometheus metrics is not enabled")
 		fmt.Println("Please enable prometheus.io/scrape in annotations first")
+		log.Errorf("Scrape prometheus metrics is not enabled. Please enable prometheus.io/scrape in annotations first.")
 		os.Exit(1)
 	}
+
+	//get sidecar specific input parameters
 	metricNames := annotations["sidecar/metric-names"]
+	if metricNames == "" {
+		log.Errorf("sidecar/metric-names can not be empty")
+		os.Exit(1)
+	}
+
 	queryIntervalString := annotations["sidecar/query-interval"]
+	if queryIntervalString == "" {
+		log.Errorf("sidecar/query-interval can not be empty")
+		os.Exit(1)
+	}
+
 	listenPort := annotations["sidecar/listen-port"]
+	if queryIntervalString == "" {
+		log.Errorf("sidecar/listenPort can not be empty")
+		os.Exit(1)
+	}
 
 	metricNameArray := strings.Split(metricNames, ",")
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if err != nil {
-		fmt.Println("Error converting strings to float64")
+		fmt.Println("Error converting \"sidecar/query-interval\" string to float64")
+		log.Errorf("Error converting \"sidecar/query-interval\" string to float64")
 	}
+	if queryInterval <= 0.0 {
+		log.Warnf("\"sidecar/query-interval\" can not be smaller or equal than zero. Set to default 30.0 seconds.")
+		queryInterval = 30.0
+	}
+
 	//get prometheus url
 	prometheusPort := annotations["prometheus.io/port"]
-	prometheusPath := annotations["prometheus.io/path"]
-	prometheusUrl := getPrometheusUrl (prometheusPort, prometheusPath)
+	if prometheusPort == "" {
+		log.Errorf("\"prometheus.io/port\" can not be empty.")
+		os.Exit(1)
+	}
 
+	prometheusPath := annotations["prometheus.io/path"]
+	if prometheusPath == "" {
+		prometheusPath = "/metrics"
+		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
+	}
+
+	prometheusUrl := getPrometheusUrl (prometheusPort, prometheusPath)
 	// get prometheus metric response body
 	respBody := getPrometheusMetrics(prometheusUrl)
 	oldRateMetricString = respBody
@@ -102,9 +139,13 @@ func main() {
 
 		// compare dimensions and calculate rate
 		for _, pm := range(newPrometheusMetrics) {
-			oldValueString := findOldValue(oldPrometheusMetrics, pm.Dimensions, pm.Name)
+			oldValueString := findOldValue(oldPrometheusMetrics, pm)
 			if oldValueString != "" {
-				rate := calculateRate(pm, oldValueString, queryInterval)
+				rate, errRate := calculateRate(pm, oldValueString, queryInterval)
+				if errRate != nil {
+					log.Errorf("Failed to calculate rate for metric %v", pm.Name)
+					continue
+				}
 				fmt.Println("rate = ", rate)
 				// store rate metric into a new string
 				newRateMetricString += structNewStringRate(pm, rate)
@@ -123,15 +164,17 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 	fmt.Println("metricName = ", metricName)
 	if !strings.Contains(respBody, metricName) {
 		fmt.Println("Prometheus metrics does not include ", metricName)
+		log.Infof("Prometheus metrics does not include %v", metricName)
 		return prometheusMetrics
 	}
-	split_with_name := strings.Split(respBody, "# HELP " + metricName)
-	metricString := strings.Split(split_with_name[1], "# HELP")[0]
+
+	splitWithName := strings.Split(respBody, "# HELP " + metricName)
+	metricString := strings.Split(splitWithName[1], "# HELP")[0]
+
 	// Convert a string into structure
 	metricStringLines := strings.Split(metricString, "\n")
-
+	// Conver each line
 	for _, i := range(metricStringLines[2:]) {
-		fmt.Println(i)
 		metricSplit := strings.Split(i, " ")
 		if len(metricSplit) > 1  {
 			metricDimensions := []Dimension{}
@@ -142,17 +185,17 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 				iMetricName := strings.Split(string(i), "{")[0]
 				// get dimensions
 				dimensions := stringBetween(string(i), "{", "}")
-				split_dims := strings.Split(dimensions, ",")
-				for _, d := range(split_dims) {
+				splitDims := strings.Split(dimensions, ",")
+				for _, d := range(splitDims) {
 					split_each_dim := strings.Split(d, "=")
 					dim := Dimension{Key: split_each_dim[0], Value: split_each_dim[1]}
 					metricDimensions = append(metricDimensions, dim)
 				}
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions}
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			} else {
 				iMetricName := metricSplit[0]
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions}
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			}
 
@@ -165,31 +208,29 @@ func getPrometheusMetrics(prometheusUrl string) string {
 	resp, err := http.Get(prometheusUrl)
 	if err != nil {
 		fmt.Println("Error scraping prometheus endpoint")
+		log.Errorf("Error scraping prometheus endpoint")
+		os.Exit(1)
 	}
 	if resp.ContentLength == 0 {
 		fmt.Println("No prometheus metric from ", prometheusUrl)
+		log.Warnf("No prometheus metric from %v", prometheusUrl)
 	}
-	fmt.Println("status code = ", resp.StatusCode)
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	return string(respBody)
 }
 
-func findOldValue(oldPrometheusMetrics []PrometheusMetric, newDimensions []Dimension, metricName string) string {
-	hNew := sha256.New()
-	hNew.Write([]byte(fmt.Sprintf("%v", newDimensions)))
-	newDimensionHash :=  hNew.Sum(nil)
+func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
 	for _, oldMetric := range(oldPrometheusMetrics) {
-		if metricName != oldMetric.Name {
+		if newPrometheusMetric.Name != oldMetric.Name {
 			continue
 		}
-		hOld := sha256.New()
-		hOld.Write([]byte(fmt.Sprintf("%v", oldMetric.Dimensions)))
-		oldDimensionHash :=  hOld.Sum(nil)
-		if bytes.Equal(newDimensionHash, oldDimensionHash) {
+		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
 			return oldMetric.Value
 		}
 	}
+	fmt.Println("Can not find previous value for metric ", newPrometheusMetric.Name)
+	log.Warnf("Can not find previous value for metric ", newPrometheusMetric.Name)
 	return ""
 }
 
@@ -198,6 +239,7 @@ func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPodAnnotations(namespace string, podName string) map[string]string {
+	annotations := map[string]string{}
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -211,15 +253,17 @@ func getPodAnnotations(namespace string, podName string) map[string]string {
 
 	podGet, err := clientSet.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		fmt.Printf("Pod not found\n")
+		fmt.Println("Pod not found")
+		log.Errorf("Pod %v not found in namespace %v.", podName, namespace)
 	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
+		fmt.Println("Error getting pod %v", statusError.ErrStatus.Message)
+		log.Errorf("Error getting pod %v in namespace %v: %v", podName, namespace, statusError.ErrStatus.Message)
 	} else if err != nil {
 		panic(err.Error())
 	} else {
 		fmt.Printf("Found pod\n")
-		annotations := podGet.Annotations
-		return annotations
+		log.Infof("Found pod %v in namespace %v", podName, namespace)
+		annotations = podGet.Annotations
 	}
-	return map[string]string{}
+	return annotations
 }

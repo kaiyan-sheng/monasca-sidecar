@@ -10,9 +10,10 @@ func TestCalculateRate(t *testing.T) {
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
 	oldValueString := "1"
 	queryInterval := 10.0
-	rateResult := calculateRate(newPrometheusMetric, oldValueString, queryInterval)
+	rateResult, errRate := calculateRate(newPrometheusMetric, oldValueString, queryInterval)
 	// (2 - 1) / 10.0 = 0.1
 	assert.Equal(t, 0.1, rateResult)
+	assert.Equal(t, nil, errRate)
 }
 
 func TestCalculateRateNegative(t *testing.T) {
@@ -20,9 +21,21 @@ func TestCalculateRateNegative(t *testing.T) {
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "1.0", Dimensions: newMetricDimension}
 	oldValueString := "2"
 	queryInterval := 10.0
-	rateResult := calculateRate(newPrometheusMetric, oldValueString, queryInterval)
+	rateResult, errRate := calculateRate(newPrometheusMetric, oldValueString, queryInterval)
 	// (1 - 2) / 10.0 = -0.1
 	assert.Equal(t, -0.1, rateResult)
+	assert.Equal(t, nil, errRate)
+}
+
+func TestCalculateRateWithBadValueString(t *testing.T) {
+	newMetricDimension := DimensionList{}
+	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "abc", Dimensions: newMetricDimension}
+	oldValueString := "1"
+	queryInterval := 10.0
+	rateResult, errRate := calculateRate(newPrometheusMetric, oldValueString, queryInterval)
+	// Failed to convert "abc" to float64
+	assert.Equal(t, 0.0, rateResult)
+	assert.NotEqual(t, nil, errRate)
 }
 
 func TestStructNewStringRate(t *testing.T) {

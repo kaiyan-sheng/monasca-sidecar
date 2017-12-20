@@ -1,14 +1,18 @@
-# (C) Copyright 2017 Hewlett Packard Enterprise Development LP
-
-package: github.hpe.com/monasca/monasca-sidecar
+package: .
 import:
+- package: github.com/prometheus/client_golang
+  subpackages:
+  - prometheus
+- package: github.hpe.com/kronos/kelog
 - package: k8s.io/apimachinery
   subpackages:
   - pkg/api/errors
   - pkg/apis/meta/v1
 - package: k8s.io/client-go
-  version: v6.0.0
   subpackages:
   - kubernetes
   - rest
-
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
