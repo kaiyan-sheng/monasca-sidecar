@@ -46,7 +46,7 @@ func main() {
 	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
 	if !ok {
 		fmt.Printf("%s not set\n", "SIDECAR_POD_NAME")
-		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
+		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		os.Exit(1)
 	}
 
@@ -54,7 +54,10 @@ func main() {
 	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
 
 	//get annotations from pod kube config
-	annotations := getPodAnnotations(podNamespace, podName)
+	annotations, errGetAnnotations := getPodAnnotations(podNamespace, podName)
+	if errGetAnnotations != nil {
+		os.Exit(1)
+	}
 	scrape := annotations["prometheus.io/scrape"]
 	if scrape != "true" {
 		fmt.Println("Scrape prometheus metrics is not enabled")
@@ -238,16 +241,18 @@ func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, oldRateMetricString) // send data to client side
 }
 
-func getPodAnnotations(namespace string, podName string) map[string]string {
+func getPodAnnotations(namespace string, podName string) (map[string]string, error) {
 	annotations := map[string]string{}
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
+		log.Errorf("Failed to create in-cluster config")
 		panic(err.Error())
 	}
 	// creates the clientSet
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		log.Errorf("Failed to creates the clientSet")
 		panic(err.Error())
 	}
 
@@ -259,11 +264,10 @@ func getPodAnnotations(namespace string, podName string) map[string]string {
 		fmt.Println("Error getting pod %v", statusError.ErrStatus.Message)
 		log.Errorf("Error getting pod %v in namespace %v: %v", podName, namespace, statusError.ErrStatus.Message)
 	} else if err != nil {
-		panic(err.Error())
 	} else {
 		fmt.Printf("Found pod\n")
 		log.Infof("Found pod %v in namespace %v", podName, namespace)
 		annotations = podGet.Annotations
 	}
-	return annotations
+	return annotations, err
 }
