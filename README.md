@@ -30,12 +30,15 @@ In helm/templates/deployment.yaml
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: LOG_LEVEL
+          value: {{ .Values.sidecar_container.log_level | quote }}
 ```
 
 3. Add image information, resource and etc for sidecar container. 
 In values.yaml
 ```
 sidecar_container:
+  log_level: info
   image:
     repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
     tag: 0.0.0-5db69aea51236b

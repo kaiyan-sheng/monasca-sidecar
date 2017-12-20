@@ -35,6 +35,17 @@ type PrometheusMetric struct {
 var oldRateMetricString = ``
 
 func main() {
+	val, ok := os.LookupEnv("LOG_LEVEL")
+	logLevelEnv := "info"
+	if ok {
+		logLevelEnv = val
+	}
+	logLevel := strings.ToLower(logLevelEnv)
+	if logLevel != "" {
+		log.Printf("Setting global log level to '%s'", logLevel)
+		log.SetLevelString(logLevel)
+	}
+
 	//get namespace and pod name from environment variables
 	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
 	if !ok {
@@ -49,9 +60,8 @@ func main() {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		os.Exit(1)
 	}
-
-	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAME", podName)
-	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
+	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
+	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
 
 	//get annotations from pod kube config
 	annotations, errGetAnnotations := getPodAnnotations(podNamespace, podName)
