@@ -5,7 +5,6 @@ package main
 import (
 	"strings"
 	"fmt"
-	"crypto/sha256"
 )
 
 func stringBetween(value string, a string, b string) string {
@@ -41,11 +40,4 @@ func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
 	}
 	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
 	return prometheusUrl
-}
-
-func convertDimensionsToHash(dimensions map[string]string) []byte {
-	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("%v", dimensions)))
-	dimensionHash := h.Sum(nil)
-	return dimensionHash
 }
