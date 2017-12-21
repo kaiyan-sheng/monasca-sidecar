@@ -83,7 +83,6 @@ func main() {
 	metricNameArray := strings.Split(metricNames, ",")
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if err != nil {
-		fmt.Println("Error converting \"sidecar/query-interval\" string to float64")
 		log.Errorf("Error converting \"sidecar/query-interval\" string to float64")
 	}
 	if queryInterval <= 0.0 {

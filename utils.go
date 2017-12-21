@@ -38,10 +38,10 @@ func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
 	}
 	if strings.HasSuffix(prometheusPath, "/") {
 		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
-		prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 		return prometheusUrl
 	}
-	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+	prometheusUrl := prefix  + ":" + prometheusPort + prometheusPath
 	return prometheusUrl
 }
 
