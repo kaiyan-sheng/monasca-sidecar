@@ -3,8 +3,8 @@
 package main
 
 import (
-	"strconv"
 	log "github.hpe.com/kronos/kelog"
+	"strconv"
 )
 
 func calculateRate(pm PrometheusMetric, oldValueString string, queryInterval float64) (float64, error) {

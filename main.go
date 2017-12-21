@@ -3,26 +3,26 @@
 package main
 
 import (
-	"net/http"
-	"fmt"
-	"io/ioutil"
-	"strings"
-	"time"
-	"strconv"
 	"bytes"
+	"fmt"
+	log "github.hpe.com/kronos/kelog"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net/http"
 	"os"
-	log "github.hpe.com/kronos/kelog"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type PrometheusMetric struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-	Dimensions map[string]string `json:"dimensions"`
-	DimensionHash []byte `json:"hashcode"`
+	Name          string            `json:"name"`
+	Value         string            `json:"value"`
+	Dimensions    map[string]string `json:"dimensions"`
+	DimensionHash []byte            `json:"hashcode"`
 }
 
 var oldRateMetricString = ``
@@ -102,20 +102,20 @@ func main() {
 		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
 	}
 
-	prometheusUrl := getPrometheusUrl (prometheusPort, prometheusPath)
+	prometheusUrl := getPrometheusUrl(prometheusPort, prometheusPath)
 	// get prometheus metric response body
 	respBody := getPrometheusMetrics(prometheusUrl)
 	oldRateMetricString = respBody
 
 	// extract information about the metric into structure
 	oldPrometheusMetrics := []PrometheusMetric{}
-	for _, metricName := range(metricNameArray) {
+	for _, metricName := range metricNameArray {
 		oldPrometheusMetrics = responseBodyToStructure(respBody, metricName, oldPrometheusMetrics)
 	}
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
-	go http.ListenAndServe(":" + listenPort, nil) // set listen port
+	go http.ListenAndServe(":"+listenPort, nil)       // set listen port
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
@@ -127,12 +127,12 @@ func main() {
 		newRespBody := getPrometheusMetrics(prometheusUrl)
 		// extract information about the metric into structure
 		newPrometheusMetrics := []PrometheusMetric{}
-		for _, metricName := range(metricNameArray) {
+		for _, metricName := range metricNameArray {
 			newPrometheusMetrics = responseBodyToStructure(newRespBody, metricName, newPrometheusMetrics)
 		}
 
 		// compare dimensions and calculate rate
-		for _, pm := range(newPrometheusMetrics) {
+		for _, pm := range newPrometheusMetrics {
 			oldValueString := findOldValue(oldPrometheusMetrics, pm)
 			if oldValueString != "" {
 				rate, errRate := calculateRate(pm, oldValueString, queryInterval)
@@ -158,15 +158,15 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 		return prometheusMetrics
 	}
 
-	splitWithName := strings.Split(respBody, "# HELP " + metricName)
+	splitWithName := strings.Split(respBody, "# HELP "+metricName)
 	metricString := strings.Split(splitWithName[1], "# HELP")[0]
 
 	// Convert a string into structure
 	metricStringLines := strings.Split(metricString, "\n")
 	// Conver each line
-	for _, i := range(metricStringLines[2:]) {
+	for _, i := range metricStringLines[2:] {
 		metricSplit := strings.Split(i, " ")
-		if len(metricSplit) > 1  {
+		if len(metricSplit) > 1 {
 			metricDimensions := map[string]string{}
 			//get metric value
 			metricValue := metricSplit[1]
@@ -208,7 +208,7 @@ func getPrometheusMetrics(prometheusUrl string) string {
 }
 
 func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
-	for _, oldMetric := range(oldPrometheusMetrics) {
+	for _, oldMetric := range oldPrometheusMetrics {
 		if newPrometheusMetric.Name != oldMetric.Name {
 			continue
 		}

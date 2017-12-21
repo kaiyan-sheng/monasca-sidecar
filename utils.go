@@ -3,11 +3,11 @@
 package main
 
 import (
-	"strings"
-	log "github.hpe.com/kronos/kelog"
 	"crypto/sha256"
-	"sort"
 	"fmt"
+	log "github.hpe.com/kronos/kelog"
+	"sort"
+	"strings"
 )
 
 func stringBetween(value string, a string, b string) string {
@@ -30,7 +30,7 @@ func stringBetween(value string, a string, b string) string {
 	return value[posFirstAdjusted:posLast]
 }
 
-func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
+func getPrometheusUrl(prometheusPort string, prometheusPath string) string {
 	prefix := "http://localhost"
 	if prometheusPath == "/" {
 		prometheusUrl := prefix + ":" + prometheusPort
@@ -41,7 +41,7 @@ func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
 		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 		return prometheusUrl
 	}
-	prometheusUrl := prefix  + ":" + prometheusPort + prometheusPath
+	prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 	return prometheusUrl
 }
 

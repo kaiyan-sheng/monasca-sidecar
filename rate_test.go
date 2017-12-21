@@ -3,12 +3,12 @@
 package main
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestCalculateRate(t *testing.T) {
-	newMetricDimension :=  map[string]string{}
+	newMetricDimension := map[string]string{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
 	oldValueString := "1"
 	queryInterval := 10.0
@@ -19,7 +19,7 @@ func TestCalculateRate(t *testing.T) {
 }
 
 func TestCalculateRateNegative(t *testing.T) {
-	newMetricDimension :=  map[string]string{}
+	newMetricDimension := map[string]string{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "1.0", Dimensions: newMetricDimension}
 	oldValueString := "2"
 	queryInterval := 10.0

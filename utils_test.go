@@ -3,8 +3,8 @@
 package main
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGetSubString(t *testing.T) {
@@ -62,7 +62,7 @@ func TestGetSubStringWithDuplicateChars(t *testing.T) {
 }
 
 func TestGetPrometheusUrl(t *testing.T) {
-	prometheusPort :=  "5556"
+	prometheusPort := "5556"
 	prometheusPath1 := "/"
 	url1 := getPrometheusUrl(prometheusPort, prometheusPath1)
 	assert.Equal(t, "http://localhost:5556", url1)
