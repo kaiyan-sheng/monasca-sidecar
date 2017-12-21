@@ -69,19 +69,19 @@ func TestGetPrometheusUrl(t *testing.T) {
 
 	prometheusPath2 := "/metrics"
 	url2 := getPrometheusUrl(prometheusPort, prometheusPath2)
-	assert.Equal(t, "http://localhost/metrics:5556", url2)
+	assert.Equal(t, "http://localhost:5556/metrics", url2)
 
 	prometheusPath3 := "/metrics/"
 	url3 := getPrometheusUrl(prometheusPort, prometheusPath3)
-	assert.Equal(t, "http://localhost/metrics:5556", url3)
+	assert.Equal(t, "http://localhost:5556/metrics", url3)
 
 	prometheusPath4 := "/support/metrics"
 	url4 := getPrometheusUrl(prometheusPort, prometheusPath4)
-	assert.Equal(t, "http://localhost/support/metrics:5556", url4)
+	assert.Equal(t, "http://localhost:5556/support/metrics", url4)
 
 	prometheusPath5 := "/support/metrics/"
 	url5 := getPrometheusUrl(prometheusPort, prometheusPath5)
-	assert.Equal(t, "http://localhost/support/metrics:5556", url5)
+	assert.Equal(t, "http://localhost:5556/support/metrics", url5)
 }
 
 func TestConvertDimensionsToHash(t *testing.T) {
