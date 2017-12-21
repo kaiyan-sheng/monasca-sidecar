@@ -28,51 +28,56 @@ type PrometheusMetric struct {
 var oldRateMetricString = ``
 
 func main() {
+	val, ok := os.LookupEnv("LOG_LEVEL")
+	logLevelEnv := "info"
+	if ok {
+		logLevelEnv = val
+	}
+	logLevel := strings.ToLower(logLevelEnv)
+	if logLevel != "" {
+		log.Printf("Setting global log level to '%s'", logLevel)
+		log.SetLevelString(logLevel)
+	}
+
 	//get namespace and pod name from environment variables
 	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
 	if !ok {
-		fmt.Printf("%s not set\n", "SIDECAR_POD_NAMESPACE")
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
 		os.Exit(1)
 	}
 
 	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
 	if !ok {
-		fmt.Printf("%s not set\n", "SIDECAR_POD_NAME")
-		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
+		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		os.Exit(1)
 	}
-
-	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAME", podName)
-	fmt.Printf("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
+	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
+	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
 
 	//get annotations from pod kube config
-	annotations := getPodAnnotations(podNamespace, podName)
+	annotations, errGetAnnotations := getPodAnnotations(podNamespace, podName)
+	if errGetAnnotations != nil {
+		os.Exit(1)
+	}
 	scrape := annotations["prometheus.io/scrape"]
 	if scrape != "true" {
-		fmt.Println("Scrape prometheus metrics is not enabled")
-		fmt.Println("Please enable prometheus.io/scrape in annotations first")
-		log.Errorf("Scrape prometheus metrics is not enabled. Please enable prometheus.io/scrape in annotations first.")
-		os.Exit(1)
+		log.Fatalf("Scrape prometheus metrics is not enabled. Please enable prometheus.io/scrape in annotations first.")
 	}
 
 	//get sidecar specific input parameters
 	metricNames := annotations["sidecar/metric-names"]
 	if metricNames == "" {
-		log.Errorf("sidecar/metric-names can not be empty")
-		os.Exit(1)
+		log.Fatalf("sidecar/metric-names can not be empty")
 	}
 
 	queryIntervalString := annotations["sidecar/query-interval"]
 	if queryIntervalString == "" {
-		log.Errorf("sidecar/query-interval can not be empty")
-		os.Exit(1)
+		log.Fatalf("sidecar/query-interval can not be empty")
 	}
 
 	listenPort := annotations["sidecar/listen-port"]
 	if queryIntervalString == "" {
-		log.Errorf("sidecar/listenPort can not be empty")
-		os.Exit(1)
+		log.Fatalf("sidecar/listenPort can not be empty")
 	}
 
 	metricNameArray := strings.Split(metricNames, ",")
@@ -89,8 +94,7 @@ func main() {
 	//get prometheus url
 	prometheusPort := annotations["prometheus.io/port"]
 	if prometheusPort == "" {
-		log.Errorf("\"prometheus.io/port\" can not be empty.")
-		os.Exit(1)
+		log.Fatalf("\"prometheus.io/port\" can not be empty.")
 	}
 
 	prometheusPath := annotations["prometheus.io/path"]
@@ -117,11 +121,9 @@ func main() {
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
 		newRateMetricString := ``
-		// sleep for 30 seconds
-		fmt.Println("Starting sleeping for 30 seconds")
+		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
-		fmt.Println("Done sleeping")
-		fmt.Println("----------")
+
 		// get a new set of prometheus metrics
 		newRespBody := getPrometheusMetrics(prometheusUrl)
 		// extract information about the metric into structure
@@ -139,12 +141,10 @@ func main() {
 					log.Errorf("Failed to calculate rate for metric %v", pm.Name)
 					continue
 				}
-				fmt.Println("rate = ", rate)
 				// store rate metric into a new string
 				newRateMetricString += structNewStringRate(pm, rate)
 			}
 		}
-		fmt.Println("----------")
 
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
@@ -154,9 +154,7 @@ func main() {
 
 func responseBodyToStructure(respBody string, metricName string, prometheusMetrics []PrometheusMetric) []PrometheusMetric {
 	// Find metric name and parse the response body string
-	fmt.Println("metricName = ", metricName)
 	if !strings.Contains(respBody, metricName) {
-		fmt.Println("Prometheus metrics does not include ", metricName)
 		log.Infof("Prometheus metrics does not include %v", metricName)
 		return prometheusMetrics
 	}
@@ -200,12 +198,9 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 func getPrometheusMetrics(prometheusUrl string) string {
 	resp, err := http.Get(prometheusUrl)
 	if err != nil {
-		fmt.Println("Error scraping prometheus endpoint")
-		log.Errorf("Error scraping prometheus endpoint")
-		os.Exit(1)
+		log.Fatalf("Error scraping prometheus endpoint")
 	}
 	if resp.ContentLength == 0 {
-		fmt.Println("No prometheus metric from ", prometheusUrl)
 		log.Warnf("No prometheus metric from %v", prometheusUrl)
 	}
 	defer resp.Body.Close()
@@ -222,7 +217,6 @@ func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric P
 			return oldMetric.Value
 		}
 	}
-	fmt.Println("Can not find previous value for metric ", newPrometheusMetric.Name)
 	log.Warnf("Can not find previous value for metric ", newPrometheusMetric.Name)
 	return ""
 }
@@ -231,32 +225,28 @@ func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, oldRateMetricString) // send data to client side
 }
 
-func getPodAnnotations(namespace string, podName string) map[string]string {
+func getPodAnnotations(namespace string, podName string) (map[string]string, error) {
 	annotations := map[string]string{}
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err.Error())
+		log.Fatalf("Failed to create in-cluster config")
 	}
 	// creates the clientSet
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		log.Fatalf("Failed to creates the clientSet")
 	}
 
 	podGet, err := clientSet.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		fmt.Println("Pod not found")
 		log.Errorf("Pod %v not found in namespace %v.", podName, namespace)
 	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		fmt.Println("Error getting pod %v", statusError.ErrStatus.Message)
 		log.Errorf("Error getting pod %v in namespace %v: %v", podName, namespace, statusError.ErrStatus.Message)
 	} else if err != nil {
-		panic(err.Error())
 	} else {
-		fmt.Printf("Found pod\n")
 		log.Infof("Found pod %v in namespace %v", podName, namespace)
 		annotations = podGet.Annotations
 	}
-	return annotations
+	return annotations, err
 }
