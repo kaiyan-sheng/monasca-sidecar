@@ -216,7 +216,6 @@ func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric P
 			return oldMetric.Value
 		}
 	}
-	log.Warnf("Can not find previous value for metric ", newPrometheusMetric.Name)
 	return ""
 }
 
