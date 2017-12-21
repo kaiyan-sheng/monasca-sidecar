@@ -27,5 +27,14 @@ func calculateRate(pm PrometheusMetric, oldValueString string, queryInterval flo
 
 func structNewStringRate(pm PrometheusMetric, rate float64) string {
 	rateMetricName := pm.Name + "_per_second"
-	return "# HELP " + rateMetricName + "\n" + "# TYPE gauge \n" + rateMetricName + pm.Dimensions + " " + strconv.FormatFloat(rate, 'e', 6, 64) + "\n"
+	return "# HELP " + rateMetricName + "\n" + "# TYPE gauge \n" + rateMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(rate, 'e', 6, 64) + "\n"
+}
+
+func dimensionsToString(dimensions map[string]string) string {
+	dimString := `{`
+	for key, value := range dimensions {
+		dimString += key + "=" + value + ","
+	}
+	dimString += dimString[0:len(dimString)-1] + "}"
+	return dimString
 }

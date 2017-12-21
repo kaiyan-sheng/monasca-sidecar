@@ -81,3 +81,54 @@ func TestGetPrometheusUrl(t *testing.T) {
 	url5 := getPrometheusUrl(prometheusPort, prometheusPath5)
 	assert.Equal(t, "http://localhost/support/metrics:5556", url5)
 }
+
+func TestConvertDimensionsToHash(t *testing.T) {
+	dimensions1 := map[string]string{}
+	dimensions1["key1"] = "value1"
+	dimensions1["key2"] = "value2"
+	dimensions1Hash := convertDimensionsToHash(dimensions1)
+
+	dimensions2 := map[string]string{}
+	dimensions2["key2"] = "value2"
+	dimensions2["key1"] = "value1"
+	dimensions2Hash := convertDimensionsToHash(dimensions2)
+	assert.NotEqual(t, dimensions1Hash, dimensions2Hash)
+}
+
+func TestSortDimensionsByKeys(t *testing.T) {
+	dimensions1 := map[string]string{}
+	dimensions1["key3"] = "value3"
+	dimensions1["key1"] = "value1"
+	dimensions1["key2"] = "value2"
+	dimensions1Sorted := sortDimensionsByKeys(dimensions1)
+
+	expectedResult1 := map[string]string{}
+	expectedResult1["key1"] = "value1"
+	expectedResult1["key2"] = "value2"
+	expectedResult1["key3"] = "value3"
+	assert.Equal(t, expectedResult1, dimensions1Sorted)
+
+	dimensions2 := map[string]string{}
+	dimensions2["bc"] = "2"
+	dimensions2["ab"] = "1"
+	dimensions2["cd"] = "3"
+	dimensions2Sorted := sortDimensionsByKeys(dimensions2)
+
+	expectedResult2 := map[string]string{}
+	expectedResult2["ab"] = "1"
+	expectedResult2["bc"] = "2"
+	expectedResult2["cd"] = "3"
+	assert.Equal(t, expectedResult2, dimensions2Sorted)
+
+	dimensions3 := map[string]string{}
+	dimensions3["3"] = "3"
+	dimensions3["2"] = "2"
+	dimensions3["1"] = "1"
+	dimensions3Sorted := sortDimensionsByKeys(dimensions3)
+
+	expectedResult3 := map[string]string{}
+	expectedResult3["1"] = "1"
+	expectedResult3["2"] = "2"
+	expectedResult3["3"] = "3"
+	assert.Equal(t, expectedResult3, dimensions3Sorted)
+}

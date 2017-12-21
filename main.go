@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"strconv"
+	"bytes"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -20,7 +21,8 @@ import (
 type PrometheusMetric struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
-	Dimensions string `json:"dimensions"`
+	Dimensions map[string]string `json:"dimensions"`
+	DimensionHash []byte `json:"hashcode"`
 }
 
 var oldRateMetricString = ``
@@ -168,6 +170,7 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 	for _, i := range(metricStringLines[2:]) {
 		metricSplit := strings.Split(i, " ")
 		if len(metricSplit) > 1  {
+			metricDimensions := map[string]string{}
 			//get metric value
 			metricValue := metricSplit[1]
 			//get metric name
@@ -175,11 +178,17 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 				iMetricName := strings.Split(string(i), "{")[0]
 				// get dimensions
 				dimensions := stringBetween(string(i), "{", "}")
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: dimensions}
+				splitDims := strings.Split(dimensions, ",")
+				for _, d := range splitDims {
+					split_each_dim := strings.Split(d, "=")
+					metricDimensions[split_each_dim[0]] = split_each_dim[1]
+				}
+				sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(sortedMetricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			} else {
 				iMetricName := metricSplit[0]
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: ""}
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: map[string]string{}, DimensionHash: convertDimensionsToHash(map[string]string{})}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			}
 
@@ -209,7 +218,7 @@ func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric P
 		if newPrometheusMetric.Name != oldMetric.Name {
 			continue
 		}
-		if newPrometheusMetric.Dimensions == oldMetric.Dimensions {
+		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
 			return oldMetric.Value
 		}
 	}

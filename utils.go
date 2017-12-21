@@ -5,6 +5,8 @@ package main
 import (
 	"strings"
 	"fmt"
+	"crypto/sha256"
+	"sort"
 )
 
 func stringBetween(value string, a string, b string) string {
@@ -40,4 +42,26 @@ func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
 	}
 	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
 	return prometheusUrl
+}
+
+func convertDimensionsToHash(dimensions map[string]string) []byte {
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("%v", dimensions)))
+	dimensionHash := h.Sum(nil)
+	return dimensionHash
+}
+
+func sortDimensionsByKeys(dimensions map[string]string) map[string]string {
+	sortedDimensions := map[string]string{}
+	// get the list of keys and sort them
+	keys := []string{}
+	for key := range dimensions {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, val := range keys {
+		sortedDimensions[val] = dimensions[val]
+	}
+	return sortedDimensions
 }
