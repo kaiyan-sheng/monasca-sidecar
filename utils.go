@@ -7,6 +7,7 @@ import (
 	log "github.hpe.com/kronos/kelog"
 	"crypto/sha256"
 	"sort"
+	"fmt"
 )
 
 func stringBetween(value string, a string, b string) string {
