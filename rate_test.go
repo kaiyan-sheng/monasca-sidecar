@@ -8,7 +8,7 @@ import (
 )
 
 func TestCalculateRate(t *testing.T) {
-	newMetricDimension := map[string]string{}
+	newMetricDimension := DimensionList{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
 	oldValueString := "1"
 	queryInterval := 10.0
@@ -19,7 +19,7 @@ func TestCalculateRate(t *testing.T) {
 }
 
 func TestCalculateRateNegative(t *testing.T) {
-	newMetricDimension := map[string]string{}
+	newMetricDimension := DimensionList{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "1.0", Dimensions: newMetricDimension}
 	oldValueString := "2"
 	queryInterval := 10.0
@@ -30,7 +30,7 @@ func TestCalculateRateNegative(t *testing.T) {
 }
 
 func TestCalculateRateWithBadValueString(t *testing.T) {
-	newMetricDimension := map[string]string{}
+	newMetricDimension := DimensionList{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "abc", Dimensions: newMetricDimension}
 	oldValueString := "1"
 	queryInterval := 10.0
@@ -41,7 +41,7 @@ func TestCalculateRateWithBadValueString(t *testing.T) {
 }
 
 func TestStructNewStringRate(t *testing.T) {
-	newMetricDimension := map[string]string{}
+	newMetricDimension := DimensionList{}
 	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
 	rateValue := 1.0
 	stringRate := structNewStringRate(newPrometheusMetric, rateValue)
@@ -51,9 +51,9 @@ func TestStructNewStringRate(t *testing.T) {
 }
 
 func TestConvertDimensionsToString(t *testing.T) {
-	dimensions := map[string]string{}
-	dimensions["key1"] = "value1"
-	dimensions["key2"] = "value2"
-	dimensionString := dimensionsToString(dimensions)
+	dimension1 := Dimension{Key: "key1", Value: "value1"}
+	dimension2 := Dimension{Key: "key2", Value: "value2"}
+	dimensionList := DimensionList{dimension1, dimension2}
+	dimensionString := dimensionsToString(dimensionList)
 	assert.Equal(t, "{key1=value1,key2=value2,{key1=value1,key2=value2}", dimensionString)
 }

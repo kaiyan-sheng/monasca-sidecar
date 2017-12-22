@@ -18,11 +18,18 @@ import (
 	"time"
 )
 
+type Dimension struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type DimensionList []Dimension
+
 type PrometheusMetric struct {
-	Name          string            `json:"name"`
-	Value         string            `json:"value"`
-	Dimensions    map[string]string `json:"dimensions"`
-	DimensionHash []byte            `json:"hashcode"`
+	Name          string        `json:"name"`
+	Value         string        `json:"value"`
+	Dimensions    DimensionList `json:"dimensions"`
+	DimensionHash []byte        `json:"hashcode"`
 }
 
 var oldRateMetricString = ``
@@ -85,7 +92,7 @@ func main() {
 	if err != nil {
 		log.Errorf("Error converting \"sidecar/query-interval\" string to float64")
 	}
-	if queryInterval <= 0.0 {
+	if queryInterval <= 0.0 && err == nil {
 		log.Warnf("\"sidecar/query-interval\" can not be smaller or equal than zero. Set to default 30.0 seconds.")
 		queryInterval = 30.0
 	}
@@ -167,7 +174,7 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 	for _, i := range metricStringLines[2:] {
 		metricSplit := strings.Split(i, " ")
 		if len(metricSplit) > 1 {
-			metricDimensions := map[string]string{}
+			metricDimensions := []Dimension{}
 			//get metric value
 			metricValue := metricSplit[1]
 			//get metric name
@@ -178,14 +185,15 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 				splitDims := strings.Split(dimensions, ",")
 				for _, d := range splitDims {
 					split_each_dim := strings.Split(d, "=")
-					metricDimensions[split_each_dim[0]] = split_each_dim[1]
+					dim := Dimension{Key: split_each_dim[0], Value: split_each_dim[1]}
+					metricDimensions = append(metricDimensions, dim)
 				}
-				sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(sortedMetricDimensions)}
+				// sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			} else {
 				iMetricName := metricSplit[0]
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: map[string]string{}, DimensionHash: convertDimensionsToHash(map[string]string{})}
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			}
 

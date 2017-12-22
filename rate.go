@@ -27,10 +27,10 @@ func structNewStringRate(pm PrometheusMetric, rate float64) string {
 	return "# HELP " + rateMetricName + "\n" + "# TYPE gauge \n" + rateMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(rate, 'e', 6, 64) + "\n"
 }
 
-func dimensionsToString(dimensions map[string]string) string {
+func dimensionsToString(dimensions []Dimension) string {
 	dimString := `{`
-	for key, value := range dimensions {
-		dimString += key + "=" + value + ","
+	for _, dim := range dimensions {
+		dimString += dim.Key + "=" + dim.Value + ","
 	}
 	dimString += dimString[0:len(dimString)-1] + "}"
 	return dimString

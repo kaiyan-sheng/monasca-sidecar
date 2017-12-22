@@ -85,15 +85,15 @@ func TestGetPrometheusUrl(t *testing.T) {
 }
 
 func TestConvertDimensionsToHash(t *testing.T) {
-	dimensions1 := map[string]string{}
-	dimensions1["key1"] = "value1"
-	dimensions1["key2"] = "value2"
-	dimensions1Hash := convertDimensionsToHash(dimensions1)
+	metricDimensions1 := []Dimension{}
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key2", Value: "value2"})
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key1", Value: "value1"})
+	dimensions1Hash := convertDimensionsToHash(metricDimensions1)
 
-	dimensions2 := map[string]string{}
-	dimensions2["key2"] = "value2"
-	dimensions2["key1"] = "value1"
-	dimensions2Hash := convertDimensionsToHash(dimensions2)
+	metricDimensions2 := []Dimension{}
+	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key1", Value: "value1"})
+	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key2", Value: "value2"})
+	dimensions2Hash := convertDimensionsToHash(metricDimensions2)
 	assert.NotEqual(t, dimensions1Hash, dimensions2Hash)
 }
 

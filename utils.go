@@ -45,7 +45,7 @@ func getPrometheusUrl(prometheusPort string, prometheusPath string) string {
 	return prometheusUrl
 }
 
-func convertDimensionsToHash(dimensions map[string]string) []byte {
+func convertDimensionsToHash(dimensions []Dimension) []byte {
 	h := sha256.New()
 	h.Write([]byte(fmt.Sprintf("%v", dimensions)))
 	dimensionHash := h.Sum(nil)
