@@ -85,12 +85,12 @@ func TestGetPrometheusUrl(t *testing.T) {
 }
 
 func TestConvertDimensionsToHash(t *testing.T) {
-	metricDimensions1 := []Dimension{}
+	metricDimensions1 := DimensionList{}
 	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key2", Value: "value2"})
 	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key1", Value: "value1"})
 	dimensions1Hash := convertDimensionsToHash(metricDimensions1)
 
-	metricDimensions2 := []Dimension{}
+	metricDimensions2 := DimensionList{}
 	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key1", Value: "value1"})
 	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key2", Value: "value2"})
 	dimensions2Hash := convertDimensionsToHash(metricDimensions2)
@@ -98,39 +98,26 @@ func TestConvertDimensionsToHash(t *testing.T) {
 }
 
 func TestSortDimensionsByKeys(t *testing.T) {
-	dimensions1 := map[string]string{}
-	dimensions1["key3"] = "value3"
-	dimensions1["key1"] = "value1"
-	dimensions1["key2"] = "value2"
-	dimensions1Sorted := sortDimensionsByKeys(dimensions1)
+	metricDimensions1 := DimensionList{}
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key2", Value: "value2"})
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "a", Value: "b"})
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key1", Value: "value1"})
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "path", Value: "pathValue"})
+	metricDimensions1 = append(metricDimensions1, Dimension{Key: "1", Value: "2"})
 
-	expectedResult1 := map[string]string{}
-	expectedResult1["key1"] = "value1"
-	expectedResult1["key2"] = "value2"
-	expectedResult1["key3"] = "value3"
-	assert.Equal(t, expectedResult1, dimensions1Sorted)
+	sortedMetricDimensions1 := sortDimensionsByKeys(metricDimensions1)
 
-	dimensions2 := map[string]string{}
-	dimensions2["bc"] = "2"
-	dimensions2["ab"] = "1"
-	dimensions2["cd"] = "3"
-	dimensions2Sorted := sortDimensionsByKeys(dimensions2)
+	expectedResult1 := DimensionList{}
+	expectedResult1 = append(expectedResult1, Dimension{Key: "1", Value: "2"})
+	expectedResult1 = append(expectedResult1, Dimension{Key: "a", Value: "b"})
+	expectedResult1 = append(expectedResult1, Dimension{Key: "key1", Value: "value1"})
+	expectedResult1 = append(expectedResult1, Dimension{Key: "key2", Value: "value2"})
+	expectedResult1 = append(expectedResult1, Dimension{Key: "path", Value: "pathValue"})
+	assert.Equal(t, expectedResult1, sortedMetricDimensions1)
 
-	expectedResult2 := map[string]string{}
-	expectedResult2["ab"] = "1"
-	expectedResult2["bc"] = "2"
-	expectedResult2["cd"] = "3"
-	assert.Equal(t, expectedResult2, dimensions2Sorted)
-
-	dimensions3 := map[string]string{}
-	dimensions3["3"] = "3"
-	dimensions3["2"] = "2"
-	dimensions3["1"] = "1"
-	dimensions3Sorted := sortDimensionsByKeys(dimensions3)
-
-	expectedResult3 := map[string]string{}
-	expectedResult3["1"] = "1"
-	expectedResult3["2"] = "2"
-	expectedResult3["3"] = "3"
-	assert.Equal(t, expectedResult3, dimensions3Sorted)
+	// test empty dimension list
+	metricDimensions2 := DimensionList{}
+	sortedMetricDimensions2 := sortDimensionsByKeys(metricDimensions2)
+	expectedResult2 := DimensionList{}
+	assert.Equal(t, expectedResult2, sortedMetricDimensions2)
 }
