@@ -1,12 +1,13 @@
-// (C) Copyright 2017 Hewlett Packard Enterprise Development LP
+// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
 
 package main
 
 import (
-	"strings"
-	log "github.hpe.com/kronos/kelog"
 	"crypto/sha256"
 	"fmt"
+	log "github.hpe.com/kronos/kelog"
+	"sort"
+	"strings"
 )
 
 func stringBetween(value string, a string, b string) string {
@@ -29,7 +30,7 @@ func stringBetween(value string, a string, b string) string {
 	return value[posFirstAdjusted:posLast]
 }
 
-func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
+func getPrometheusUrl(prometheusPort string, prometheusPath string) string {
 	prefix := "http://localhost"
 	if prometheusPath == "/" {
 		prometheusUrl := prefix + ":" + prometheusPort
@@ -37,10 +38,10 @@ func getPrometheusUrl (prometheusPort string, prometheusPath string) string {
 	}
 	if strings.HasSuffix(prometheusPath, "/") {
 		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
-		prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 		return prometheusUrl
 	}
-	prometheusUrl := prefix + prometheusPath + ":" + prometheusPort
+	prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 	return prometheusUrl
 }
 
@@ -49,4 +50,19 @@ func convertDimensionsToHash(dimensions []Dimension) []byte {
 	h.Write([]byte(fmt.Sprintf("%v", dimensions)))
 	dimensionHash := h.Sum(nil)
 	return dimensionHash
+}
+
+func sortDimensionsByKeys(dimensions map[string]string) map[string]string {
+	sortedDimensions := map[string]string{}
+	// get the list of keys and sort them
+	keys := []string{}
+	for key := range dimensions {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, val := range keys {
+		sortedDimensions[val] = dimensions[val]
+	}
+	return sortedDimensions
 }

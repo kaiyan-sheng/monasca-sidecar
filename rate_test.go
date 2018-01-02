@@ -1,8 +1,10 @@
+// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
+
 package main
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestCalculateRate(t *testing.T) {

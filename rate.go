@@ -1,10 +1,10 @@
-// (C) Copyright 2017 Hewlett Packard Enterprise Development LP
+// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
 
 package main
 
 import (
-	"strconv"
 	log "github.hpe.com/kronos/kelog"
+	"strconv"
 )
 
 func calculateRate(pm PrometheusMetric, oldValueString string, queryInterval float64) (float64, error) {
@@ -29,7 +29,7 @@ func structNewStringRate(pm PrometheusMetric, rate float64) string {
 
 func dimensionsToString(dimensions []Dimension) string {
 	dimString := `{`
-	for _, dim := range (dimensions) {
+	for _, dim := range dimensions {
 		dimString += dim.Key + "=" + dim.Value + ","
 	}
 	dimString += dimString[0:len(dimString)-1] + "}"
