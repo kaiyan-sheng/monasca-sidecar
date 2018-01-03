@@ -3,7 +3,7 @@ A push-pull metric forwarder bridging Monasca and Prometheus.
 
 ## Usage
 1. Add metric list, query interval and listen port to calculate rate. 
-In helm/templates/deployment.yaml
+Under annotations in helm/templates/deployment.yaml, add:
 ```
         sidecar/metric-names: "request_total_time,go_gc_duration_seconds,request_count"
         sidecar/query-interval: "30"
@@ -11,7 +11,7 @@ In helm/templates/deployment.yaml
 ```
 
 2. Add sidecar container into deployment.yaml and expose pod name and namespace from environment variables. 
-In helm/templates/deployment.yaml
+In helm/templates/deployment.yaml, add:
 ```
       - name: {{ template "name" . }}-sidecar-container
         image: "{{ .Values.sidecar_container.image.repository }}:{{ .Values.sidecar_container.image.tag }}"
@@ -35,13 +35,13 @@ In helm/templates/deployment.yaml
 ```
 
 3. Add image information, resource and etc for sidecar container. 
-In values.yaml
+In values.yaml, add:
 ```
 sidecar_container:
   log_level: info
   image:
     repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
-    tag: 0.0.0-5db69aea51236b
+    tag: 0.0.0-fafad16aec4039 
     pullPolicy: Always
   resources:
     requests:
