@@ -58,7 +58,7 @@ func main() {
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		// os.Exit(1)
-		podName = "ms-api-api-3445366585-c280x"
+		podName = "ms-api-api-2872415798-p2vxw"
 	}
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
@@ -91,23 +91,10 @@ func main() {
 	fmt.Println("*************")
 	fmt.Println(rules)
 	fmt.Println("*************")
-	sidecarRules := parseYamlSidecarRules(rules)
 
+	sidecarRules := parseYamlSidecarRules(rules)
 	// get all metric names from sidecar rules into metricNameArray
-	metricNames := []string{}
-	for _, rule := range sidecarRules {
-		if rule.Function == "rate" {
-			metricNames = append(metricNames, rule.Parameters["name"])
-		} else if rule.Function == "avg" {
-			metricNames = append(metricNames, rule.Parameters["name"])
-		} else if rule.Function == "ratio" {
-			metricNames = append(metricNames, rule.Parameters["numerator"])
-			metricNames = append(metricNames, rule.Parameters["demoninator"])
-		}
-	}
-	fmt.Println("metricNames = ", metricNames)
-	metricNameArray := removeDuplicates(metricNames)
-	fmt.Println("metricNameArray = ", metricNameArray)
+	metricNameArray := getMetricNamesFromRules(sidecarRules)
 
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if queryInterval <= 0.0 || err != nil {
@@ -124,6 +111,8 @@ func main() {
 	for _, metricName := range metricNameArray {
 		oldPrometheusMetrics = responseBodyToStructure(respBody, metricName, oldPrometheusMetrics)
 	}
+	fmt.Println(oldPrometheusMetrics)
+	fmt.Println("********************")
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
@@ -132,6 +121,7 @@ func main() {
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
 		newRateMetricString := ``
+		newAvgMetricString := ``
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
@@ -142,7 +132,21 @@ func main() {
 		for _, metricName := range metricNameArray {
 			newPrometheusMetrics = responseBodyToStructure(newRespBody, metricName, newPrometheusMetrics)
 		}
+		fmt.Println(newPrometheusMetrics)
+		fmt.Println("********************")
 
+		// calculate by each sidecar rule
+		for _, rule := range sidecarRules {
+			if rule.Function == "rate" {
+				newRateMetricString += calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
+				fmt.Println(newRateMetricString)
+				fmt.Println("********************")
+			} else if rule.Function == "avg" {
+				newAvgMetricString += calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				fmt.Println(newAvgMetricString)
+				fmt.Println("********************")
+			}
+		}
 		// compare dimensions and calculate rate
 		for _, pm := range newPrometheusMetrics {
 			oldValueString := findOldValue(oldPrometheusMetrics, pm)
@@ -274,4 +278,20 @@ func getPodAnnotations(namespace string, podName string) (map[string]string, err
 		annotations = podGet.Annotations
 	}
 	return annotations, err
+}
+
+func getMetricNamesFromRules(sidecarRules []SidecarRule) []string {
+	metricNames := []string{}
+	for _, rule := range sidecarRules {
+		if rule.Function == "rate" {
+			metricNames = append(metricNames, rule.Parameters["name"])
+		} else if rule.Function == "avg" {
+			metricNames = append(metricNames, rule.Parameters["name"])
+		} else if rule.Function == "ratio" {
+			metricNames = append(metricNames, rule.Parameters["numerator"])
+			metricNames = append(metricNames, rule.Parameters["demoninator"])
+		}
+	}
+	metricNameArray := removeDuplicates(metricNames)
+	return metricNameArray
 }

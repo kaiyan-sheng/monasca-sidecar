@@ -102,3 +102,12 @@ func removeDuplicates(elements []string) []string {
 	// Return the new slice.
 	return result
 }
+
+func dimensionsToString(dimensions []Dimension) string {
+	dimString := `{`
+	for _, dim := range dimensions {
+		dimString += dim.Key + "=" + dim.Value + ","
+	}
+	dimString += dimString[0:len(dimString)-1] + "}"
+	return dimString
+}
