@@ -50,13 +50,15 @@ func main() {
 	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
-		os.Exit(1)
+		podNamespace = "ms"
+		// os.Exit(1)
 	}
 
 	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
-		os.Exit(1)
+		// os.Exit(1)
+		podName = "ms-api-api-3445366585-c280x"
 	}
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
@@ -72,11 +74,6 @@ func main() {
 	}
 
 	//get sidecar specific input parameters
-	metricNames := annotations["sidecar/metric-names"]
-	if metricNames == "" {
-		log.Fatalf("sidecar/metric-names can not be empty")
-	}
-
 	queryIntervalString := annotations["sidecar/query-interval"]
 	if queryIntervalString == "" {
 		log.Fatalf("sidecar/query-interval can not be empty")
@@ -87,28 +84,39 @@ func main() {
 		log.Fatalf("sidecar/listenPort can not be empty")
 	}
 
-	metricNameArray := strings.Split(metricNames, ",")
+	rules := annotations["sidecar/rules"]
+	if rules == "" {
+		log.Fatalf("sidecar/rules can not be empty")
+	}
+	fmt.Println("*************")
+	fmt.Println(rules)
+	fmt.Println("*************")
+	sidecarRules := parseYamlSidecarRules(rules)
+
+	// get all metric names from sidecar rules into metricNameArray
+	metricNames := []string{}
+	for _, rule := range sidecarRules {
+		if rule.Function == "rate" {
+			metricNames = append(metricNames, rule.Parameters["name"])
+		} else if rule.Function == "avg" {
+			metricNames = append(metricNames, rule.Parameters["name"])
+		} else if rule.Function == "ratio" {
+			metricNames = append(metricNames, rule.Parameters["numerator"])
+			metricNames = append(metricNames, rule.Parameters["demoninator"])
+		}
+	}
+	fmt.Println("metricNames = ", metricNames)
+	metricNameArray := removeDuplicates(metricNames)
+	fmt.Println("metricNameArray = ", metricNameArray)
+
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if queryInterval <= 0.0 || err != nil {
 		log.Warnf("Error converting \"sidecar/query-interval\". Set queryInterval to default 30.0 seconds.")
 		queryInterval = 30.0
 	}
 
-	//get prometheus url
-	prometheusPort := annotations["prometheus.io/port"]
-	if prometheusPort == "" {
-		log.Fatalf("\"prometheus.io/port\" can not be empty.")
-	}
-
-	prometheusPath := annotations["prometheus.io/path"]
-	if prometheusPath == "" {
-		prometheusPath = "/metrics"
-		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
-	}
-
-	prometheusUrl := getPrometheusUrl(prometheusPort, prometheusPath)
-	// get prometheus metric response body
-	respBody := getPrometheusMetrics(prometheusUrl)
+	// get prometheus url and prometheus metric response body
+	respBody := getPrometheusMetrics(annotations)
 	oldRateMetricString = respBody
 
 	// extract information about the metric into structure
@@ -128,7 +136,7 @@ func main() {
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
 		// get a new set of prometheus metrics
-		newRespBody := getPrometheusMetrics(prometheusUrl)
+		newRespBody := getPrometheusMetrics(annotations)
 		// extract information about the metric into structure
 		newPrometheusMetrics := []PrometheusMetric{}
 		for _, metricName := range metricNameArray {
@@ -199,7 +207,21 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 	return prometheusMetrics
 }
 
-func getPrometheusMetrics(prometheusUrl string) string {
+func getPrometheusMetrics(annotations map[string]string) string {
+	//get prometheus url
+	prometheusPort := annotations["prometheus.io/port"]
+	if prometheusPort == "" {
+		log.Fatalf("\"prometheus.io/port\" can not be empty.")
+	}
+
+	prometheusPath := annotations["prometheus.io/path"]
+	if prometheusPath == "" {
+		prometheusPath = "/metrics"
+		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
+	}
+
+	prometheusUrl := getPrometheusUrl(prometheusPort, prometheusPath)
+
 	resp, err := http.Get(prometheusUrl)
 	if err != nil {
 		log.Fatalf("Error scraping prometheus endpoint")

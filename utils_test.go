@@ -134,3 +134,43 @@ func TestSortDimensionsByKeys(t *testing.T) {
 	expectedResult3["3"] = "3"
 	assert.Equal(t, expectedResult3, dimensions3Sorted)
 }
+
+func TestSplitRules(t *testing.T) {
+	var rules = `
+- name: request_rate
+  function: ratio
+  parameters:
+    numerator: request_total_time
+    denominator: request_count
+- name: request_time_avg
+  function: avg
+  parameters:
+    name: request_total_time
+- name: request_count_rate
+  function: rate
+  parameters:
+    name: request_count`
+
+	ruleStruct := parseYamlSidecarRules(rules)
+	var expectedRules []SidecarRule
+	param1 := map[string]string{}
+	param1["numerator"] = "request_total_time"
+	param1["denominator"] = "request_count"
+
+	param2 := map[string]string{}
+	param2["name"] = "request_total_time"
+
+	param3 := map[string]string{}
+	param3["name"] = "request_count"
+	expectedRules = append(expectedRules, SidecarRule{Name: "request_rate", Function: "ratio", Parameters: param1})
+	expectedRules = append(expectedRules, SidecarRule{Name: "request_time_avg", Function: "avg", Parameters: param2})
+	expectedRules = append(expectedRules, SidecarRule{Name: "request_count_rate", Function: "rate", Parameters: param3})
+	assert.Equal(t, expectedRules, ruleStruct)
+}
+
+func TestRemoveDuplicates(t *testing.T) {
+	elements := []string{"metric1", "metric2", "name1", "name2", "metric1", "metric2", "name1", "name2"}
+	dedupElements := removeDuplicates(elements)
+	expectedElements := []string{"metric1", "metric2", "name1", "name2"}
+	assert.Equal(t, expectedElements, dedupElements)
+}
