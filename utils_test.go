@@ -137,16 +137,16 @@ func TestSortDimensionsByKeys(t *testing.T) {
 
 func TestSplitRules(t *testing.T) {
 	var rules = `
-- name: request_rate
+- metricName: request_rate
   function: ratio
   parameters:
     numerator: request_total_time
     denominator: request_count
-- name: request_time_avg
+- metricName: request_time_avg
   function: avg
   parameters:
     name: request_total_time
-- name: request_count_rate
+- metricName: request_count_rate
   function: rate
   parameters:
     name: request_count`

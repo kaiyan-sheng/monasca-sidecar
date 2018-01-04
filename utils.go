@@ -12,9 +12,9 @@ import (
 )
 
 type SidecarRule struct {
-	Name       string            `json:"name"`
-	Function   string            `json:"function"`
-	Parameters map[string]string `json:"parameters"`
+	Name       string            `yaml:"metricName"`
+	Function   string            `yaml:"function"`
+	Parameters map[string]string `yaml:"parameters"`
 }
 
 func stringBetween(value string, a string, b string) string {

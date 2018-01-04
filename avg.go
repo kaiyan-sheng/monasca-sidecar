@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func calculateAvg(newPrometheusMetrics PrometheusMetrics, oldPrometheusMetrics PrometheusMetrics, rule SidecarRule) (float64, error) {
+func calculateAvg(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics []PrometheusMetric, rule SidecarRule) string {
 	newAvgMetricString := ``
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
@@ -18,16 +18,14 @@ func calculateAvg(newPrometheusMetrics PrometheusMetrics, oldPrometheusMetrics P
 				newValue, errNew := strconv.ParseFloat(pm.Value, 64)
 				if errNew != nil {
 					log.Errorf("Error converting strings to float64: %v", pm.Value)
-					return 0.0, errNew
 				}
 				oldValue, errOld := strconv.ParseFloat(oldValueString, 64)
 				if errOld != nil {
 					log.Errorf("Error converting strings to float64: %v", oldValueString)
-					return 0.0, errNew
 				}
 				avg := (newValue + oldValue) / 2.0
 				// store rate metric into a new string
-				newAvgMetricString += structNewStringRate(pm, avg)
+				newAvgMetricString += structNewStringRate(pm, avg, rule)
 			}
 		}
 	}

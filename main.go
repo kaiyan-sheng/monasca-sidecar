@@ -147,19 +147,6 @@ func main() {
 				fmt.Println("********************")
 			}
 		}
-		// compare dimensions and calculate rate
-		for _, pm := range newPrometheusMetrics {
-			oldValueString := findOldValue(oldPrometheusMetrics, pm)
-			if oldValueString != "" {
-				rate, errRate := calculateRate(pm, oldValueString, queryInterval)
-				if errRate != nil {
-					log.Errorf("Failed to calculate rate for metric %v", pm.Name)
-					continue
-				}
-				// store rate metric into a new string
-				newRateMetricString += structNewStringRate(pm, rate)
-			}
-		}
 
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
