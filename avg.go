@@ -27,14 +27,9 @@ func calculateAvg(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics 
 				}
 				avg := (newValue + oldValue) / 2.0
 				// store avg metric into a new string
-				newAvgMetricString += structNewStringAvg(pm, avg, rule)
+				newAvgMetricString += structNewMetricString(pm, avg, rule)
 			}
 		}
 	}
 	return newAvgMetricString
-}
-
-func structNewStringAvg(pm PrometheusMetric, avg float64, avgRule SidecarRule) string {
-	avgMetricName := avgRule.Name
-	return "# HELP " + avgMetricName + "\n" + "# TYPE gauge \n" + avgMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(avg, 'e', 6, 64) + "\n"
 }

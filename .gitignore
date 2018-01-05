@@ -13,3 +13,4 @@ vendor/
 
 glide.lock
 main/
+*.iml

@@ -124,16 +124,3 @@ func TestCalculateAvgWithBadValueString(t *testing.T) {
 	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
 	assert.Equal(t, "", avgMetricString)
 }
-
-func TestStructNewStringAvg(t *testing.T) {
-	newMetricDimension := DimensionList{}
-	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_avg", Value: "2.0", Dimensions: newMetricDimension}
-	avgValue := 1.0
-	avgRuleParam := map[string]string{}
-	avgRuleParam["name"] = "request_count"
-	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
-	stringAvg := structNewStringAvg(newPrometheusMetric, avgValue, avgRule)
-	assert.Equal(t,
-		"# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.000000e+00\n",
-		stringAvg)
-}

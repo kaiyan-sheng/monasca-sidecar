@@ -8,6 +8,7 @@ import (
 	log "github.hpe.com/kronos/kelog"
 	"gopkg.in/yaml.v2"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -114,4 +115,9 @@ func dimensionsToString(dimensions []Dimension) string {
 	}
 	dimString = dimString[0:len(dimString)-1] + "}"
 	return dimString
+}
+
+func structNewMetricString(pm PrometheusMetric, newMetricValue float64, rule SidecarRule) string {
+	newMetricName := rule.Name
+	return "# HELP " + newMetricName + "\n" + "# TYPE gauge \n" + newMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(newMetricValue, 'e', 6, 64) + "\n"
 }

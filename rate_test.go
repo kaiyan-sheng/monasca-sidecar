@@ -129,16 +129,3 @@ func TestCalculateRateWithBadValueString(t *testing.T) {
 	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
 	assert.Equal(t, "", rateMetricString)
 }
-
-func TestStructNewStringRate(t *testing.T) {
-	newMetricDimension := DimensionList{}
-	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
-	rateValue := 1.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
-	stringRate := structNewStringRate(newPrometheusMetric, rateValue, rateRule)
-	assert.Equal(t,
-		"# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e+00\n",
-		stringRate)
-}

@@ -110,8 +110,6 @@ func main() {
 	for _, metricName := range metricNameArray {
 		oldPrometheusMetrics = responseBodyToStructure(respBody, metricName, oldPrometheusMetrics)
 	}
-	fmt.Println(oldPrometheusMetrics)
-	fmt.Println("********************")
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
@@ -121,6 +119,7 @@ func main() {
 	for {
 		newRateMetricString := ``
 		newAvgMetricString := ``
+		newRatioMetricString := ``
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
@@ -131,8 +130,6 @@ func main() {
 		for _, metricName := range metricNameArray {
 			newPrometheusMetrics = responseBodyToStructure(newRespBody, metricName, newPrometheusMetrics)
 		}
-		fmt.Println(newPrometheusMetrics)
-		fmt.Println("********************")
 
 		// calculate by each sidecar rule
 		for _, rule := range sidecarRules {
@@ -142,6 +139,10 @@ func main() {
 				fmt.Println("********************")
 			} else if rule.Function == "avg" {
 				newAvgMetricString += calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				fmt.Println(newAvgMetricString)
+				fmt.Println("********************")
+			} else if rule.Function == "ratio" {
+				newRatioMetricString += calculateRatio(newPrometheusMetrics, rule)
 				fmt.Println(newAvgMetricString)
 				fmt.Println("********************")
 			}

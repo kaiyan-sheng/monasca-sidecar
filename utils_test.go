@@ -182,3 +182,29 @@ func TestConvertDimensionsToString(t *testing.T) {
 	dimensionString := dimensionsToString(dimensionList)
 	assert.Equal(t, "{key1=value1,key2=value2}", dimensionString)
 }
+
+func TestStructNewStringRate(t *testing.T) {
+	newMetricDimension := DimensionList{}
+	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
+	rateValue := 1.0
+	rateRuleParam := map[string]string{}
+	rateRuleParam["name"] = "request_count"
+	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	stringRate := structNewMetricString(newPrometheusMetric, rateValue, rateRule)
+	assert.Equal(t,
+		"# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e+00\n",
+		stringRate)
+}
+
+func TestStructNewStringAvg(t *testing.T) {
+	newMetricDimension := DimensionList{}
+	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_avg", Value: "2.0", Dimensions: newMetricDimension}
+	avgValue := 1.0
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
+	stringAvg := structNewMetricString(newPrometheusMetric, avgValue, avgRule)
+	assert.Equal(t,
+		"# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.000000e+00\n",
+		stringAvg)
+}

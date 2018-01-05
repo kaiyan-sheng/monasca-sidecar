@@ -28,16 +28,11 @@ func calculateRate(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics
 				}
 				rate := (newValue - oldValue) / queryInterval
 				// store rate metric into a new string
-				newRateMetricString += structNewStringRate(pm, rate, rule)
+				newRateMetricString += structNewMetricString(pm, rate, rule)
 			}
 		}
 	}
 	return newRateMetricString
-}
-
-func structNewStringRate(pm PrometheusMetric, rate float64, rateRule SidecarRule) string {
-	rateMetricName := rateRule.Name
-	return "# HELP " + rateMetricName + "\n" + "# TYPE gauge \n" + rateMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(rate, 'e', 6, 64) + "\n"
 }
 
 func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
