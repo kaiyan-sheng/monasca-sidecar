@@ -104,10 +104,14 @@ func removeDuplicates(elements []string) []string {
 }
 
 func dimensionsToString(dimensions []Dimension) string {
+	if len(dimensions) == 0 {
+		return ""
+	}
 	dimString := `{`
 	for _, dim := range dimensions {
-		dimString += dim.Key + "=" + dim.Value + ","
+		dimKeyValue := dim.Key + "=" + dim.Value + ","
+		dimString += dimKeyValue
 	}
-	dimString += dimString[0:len(dimString)-1] + "}"
+	dimString = dimString[0:len(dimString)-1] + "}"
 	return dimString
 }

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	log "github.hpe.com/kronos/kelog"
 	"strconv"
 )
@@ -18,10 +19,12 @@ func calculateRate(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics
 				newValue, errNew := strconv.ParseFloat(pm.Value, 64)
 				if errNew != nil {
 					log.Errorf("Error converting strings to float64: %v", pm.Value)
+					continue
 				}
 				oldValue, errOld := strconv.ParseFloat(oldValueString, 64)
 				if errOld != nil {
 					log.Errorf("Error converting strings to float64: %v", oldValueString)
+					continue
 				}
 				rate := (newValue - oldValue) / queryInterval
 				// store rate metric into a new string
@@ -35,4 +38,16 @@ func calculateRate(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics
 func structNewStringRate(pm PrometheusMetric, rate float64, rateRule SidecarRule) string {
 	rateMetricName := rateRule.Name
 	return "# HELP " + rateMetricName + "\n" + "# TYPE gauge \n" + rateMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(rate, 'e', 6, 64) + "\n"
+}
+
+func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
+	for _, oldMetric := range oldPrometheusMetrics {
+		if newPrometheusMetric.Name != oldMetric.Name {
+			continue
+		}
+		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
+			return oldMetric.Value
+		}
+	}
+	return ""
 }

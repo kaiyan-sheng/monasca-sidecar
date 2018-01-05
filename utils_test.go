@@ -174,3 +174,11 @@ func TestRemoveDuplicates(t *testing.T) {
 	expectedElements := []string{"metric1", "metric2", "name1", "name2"}
 	assert.Equal(t, expectedElements, dedupElements)
 }
+
+func TestConvertDimensionsToString(t *testing.T) {
+	dimension1 := Dimension{Key: "key1", Value: "value1"}
+	dimension2 := Dimension{Key: "key2", Value: "value2"}
+	dimensionList := DimensionList{dimension1, dimension2}
+	dimensionString := dimensionsToString(dimensionList)
+	assert.Equal(t, "{key1=value1,key2=value2}", dimensionString)
+}

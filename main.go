@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	log "github.hpe.com/kronos/kelog"
 	"io/ioutil"
@@ -58,7 +57,7 @@ func main() {
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		// os.Exit(1)
-		podName = "ms-api-api-2872415798-p2vxw"
+		podName = "ms-api-api-4195849451-1qm50"
 	}
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
@@ -223,18 +222,6 @@ func getPrometheusMetrics(annotations map[string]string) string {
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	return string(respBody)
-}
-
-func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
-	for _, oldMetric := range oldPrometheusMetrics {
-		if newPrometheusMetric.Name != oldMetric.Name {
-			continue
-		}
-		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
-			return oldMetric.Value
-		}
-	}
-	return ""
 }
 
 func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
