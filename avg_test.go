@@ -1,4 +1,4 @@
-// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
+// (C) Copyright 2018 Hewlett Packard Enterprise Development LP
 
 package main
 
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestCalculateRate(t *testing.T) {
+func TestCalculateAvg(t *testing.T) {
 	metricDimension := DimensionList{}
 	newPrometheusMetrics := []PrometheusMetric{}
 	oldPrometheusMetrics := []PrometheusMetric{}
@@ -17,39 +17,37 @@ func TestCalculateRate(t *testing.T) {
 	// define oldPrometheusMetrics
 	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "1.0", Dimensions: metricDimension}
 	oldPrometheusMetrics = append(oldPrometheusMetrics, oldPrometheusMetric)
-	// define queryInterval and rateRule
-	queryInterval := 10.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	// define avgRule
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
-	// (2 - 1) / 10.0 = 0.1
-	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e-01\n", rateMetricString)
+	// (2 + 1) / 2 = 1.5
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.500000e+00\n", avgMetricString)
 }
 
-func TestCalculateRateNegative(t *testing.T) {
+func TestCalculateAvgNegative(t *testing.T) {
 	metricDimension := DimensionList{}
 	newPrometheusMetrics := []PrometheusMetric{}
 	oldPrometheusMetrics := []PrometheusMetric{}
 	// define newPrometheusMetrics
-	newPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "1.0", Dimensions: metricDimension}
+	newPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "-1.0", Dimensions: metricDimension}
 	newPrometheusMetrics = append(newPrometheusMetrics, newPrometheusMetric)
 	// define oldPrometheusMetrics
-	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimension}
+	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "-2.0", Dimensions: metricDimension}
 	oldPrometheusMetrics = append(oldPrometheusMetrics, oldPrometheusMetric)
-	// define queryInterval and rateRule
-	queryInterval := 10.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	// define avgRule
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
-	// (1 - 2) / 10.0 = -0.1
-	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName -1.000000e-01\n", rateMetricString)
+	// (-1 - 2) / 2 = -1.5
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName -1.500000e+00\n", avgMetricString)
 }
 
-func TestCalculateRateWithDimensions(t *testing.T) {
+func TestCalculateAvgWithDimensions(t *testing.T) {
 	newMetricDimensions := []Dimension{}
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key2", Value: "value2"})
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key1", Value: "value1"})
@@ -65,18 +63,17 @@ func TestCalculateRateWithDimensions(t *testing.T) {
 	// define oldPrometheusMetrics
 	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "1.0", Dimensions: oldMetricDimensions, DimensionHash: convertDimensionsToHash(oldMetricDimensions)}
 	oldPrometheusMetrics = append(oldPrometheusMetrics, oldPrometheusMetric)
-	// define queryInterval and rateRule
-	queryInterval := 10.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	// define queryInterval and avgRule
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
-	// (2 - 1) / 10.0 = 0.1
-	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName{key2=value2,key1=value1} 1.000000e-01\n", rateMetricString)
+	// (2 + 1) / 2 = 1.5
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName{key2=value2,key1=value1} 1.500000e+00\n", avgMetricString)
 }
 
-func TestCalculateRateWithMisMatchDimensions(t *testing.T) {
+func TestCalculateAvgWithMisMatchDimensions(t *testing.T) {
 	newMetricDimensions := []Dimension{}
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key1", Value: "value1"})
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key2", Value: "value2"})
@@ -92,18 +89,17 @@ func TestCalculateRateWithMisMatchDimensions(t *testing.T) {
 	// define oldPrometheusMetrics
 	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "1.0", Dimensions: oldMetricDimensions, DimensionHash: convertDimensionsToHash(oldMetricDimensions)}
 	oldPrometheusMetrics = append(oldPrometheusMetrics, oldPrometheusMetric)
-	// define queryInterval and rateRule
-	queryInterval := 10.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	// define queryInterval and avgRule
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
 	// mismatch dimensions
-	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "", rateMetricString)
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics,avgRule)
+	assert.Equal(t, "", avgMetricString)
 }
 
-func TestCalculateRateWithBadValueString(t *testing.T) {
+func TestCalculateAvgWithBadValueString(t *testing.T) {
 	newMetricDimensions := []Dimension{}
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key1", Value: "value1"})
 	newMetricDimensions = append(newMetricDimensions, Dimension{Key: "key2", Value: "value2"})
@@ -119,26 +115,25 @@ func TestCalculateRateWithBadValueString(t *testing.T) {
 	// define oldPrometheusMetrics
 	oldPrometheusMetric := PrometheusMetric{Name: "request_count", Value: "def", Dimensions: oldMetricDimensions}
 	oldPrometheusMetrics = append(oldPrometheusMetrics, oldPrometheusMetric)
-	// define queryInterval and rateRule
-	queryInterval := 10.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+	// define queryInterval and avgRule
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
 	// bad values
-	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "", rateMetricString)
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics,avgRule)
+	assert.Equal(t, "", avgMetricString)
 }
 
-func TestStructNewStringRate(t *testing.T) {
+func TestStructNewStringAvg(t *testing.T) {
 	newMetricDimension := DimensionList{}
-	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
-	rateValue := 1.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
-	stringRate := structNewStringRate(newPrometheusMetric, rateValue, rateRule)
+	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_avg", Value: "2.0", Dimensions: newMetricDimension}
+	avgValue := 1.0
+	avgRuleParam := map[string]string{}
+	avgRuleParam["name"] = "request_count"
+	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
+	stringAvg := structNewStringAvg(newPrometheusMetric, avgValue, avgRule)
 	assert.Equal(t,
-		"# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e+00\n",
-		stringRate)
+		"# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.000000e+00\n",
+		stringAvg)
 }
