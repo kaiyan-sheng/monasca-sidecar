@@ -3,7 +3,9 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	log "github.hpe.com/kronos/kelog"
 	"gopkg.in/yaml.v2"
@@ -119,5 +121,31 @@ func dimensionsToString(dimensions []Dimension) string {
 
 func structNewMetricString(pm PrometheusMetric, newMetricValue float64, rule SidecarRule) string {
 	newMetricName := rule.Name
-	return "# HELP " + newMetricName + "\n" + "# TYPE gauge \n" + newMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(newMetricValue, 'e', 6, 64) + "\n"
+	return "# HELP " + newMetricName + "\n" + "# TYPE gauge\n" + newMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(newMetricValue, 'e', 6, 64) + "\n"
+}
+
+func findDenominatorValue(prometheusMetrics []PrometheusMetric, dimensionHash []byte, denominatorName string) (float64, error) {
+	for _, pm := range prometheusMetrics {
+		if pm.Name == denominatorName && bytes.Equal(dimensionHash, pm.DimensionHash) {
+			// get denominator value
+			denominatorValue, errDenominator := strconv.ParseFloat(pm.Value, 64)
+			if errDenominator != nil {
+				log.Errorf("Error converting strings to float64: %v", pm.Value)
+			}
+			return denominatorValue, errDenominator
+		}
+	}
+	return 0.0, errors.New("Cannot find the denominator metric with the same dimensions as numerator")
+}
+
+func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
+	for _, oldMetric := range oldPrometheusMetrics {
+		if newPrometheusMetric.Name != oldMetric.Name {
+			continue
+		}
+		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
+			return oldMetric.Value
+		}
+	}
+	return ""
 }

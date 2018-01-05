@@ -137,7 +137,7 @@ func TestSortDimensionsByKeys(t *testing.T) {
 
 func TestSplitRules(t *testing.T) {
 	var rules = `
-- metricName: request_rate
+- metricName: request_time_count_ratio
   function: ratio
   parameters:
     numerator: request_total_time
@@ -149,7 +149,16 @@ func TestSplitRules(t *testing.T) {
 - metricName: request_count_rate
   function: rate
   parameters:
-    name: request_count`
+    name: request_count
+- metricName: request_delta_ratio
+  function: ratio
+  parameters:
+    numerator: request_total_time
+    denominator: request_count
+- metricName: *
+  function: omitDimensions
+  parameters:
+    dimensionNames: pod,container`
 
 	ruleStruct := parseYamlSidecarRules(rules)
 	var expectedRules []SidecarRule
@@ -162,9 +171,10 @@ func TestSplitRules(t *testing.T) {
 
 	param3 := map[string]string{}
 	param3["name"] = "request_count"
-	expectedRules = append(expectedRules, SidecarRule{Name: "request_rate", Function: "ratio", Parameters: param1})
+	expectedRules = append(expectedRules, SidecarRule{Name: "request_time_count_ratio", Function: "ratio", Parameters: param1})
 	expectedRules = append(expectedRules, SidecarRule{Name: "request_time_avg", Function: "avg", Parameters: param2})
 	expectedRules = append(expectedRules, SidecarRule{Name: "request_count_rate", Function: "rate", Parameters: param3})
+	expectedRules = append(expectedRules, SidecarRule{Name: "request_delta_ratio", Function: "ratio", Parameters: param1})
 	assert.Equal(t, expectedRules, ruleStruct)
 }
 
@@ -192,7 +202,7 @@ func TestStructNewStringRate(t *testing.T) {
 	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
 	stringRate := structNewMetricString(newPrometheusMetric, rateValue, rateRule)
 	assert.Equal(t,
-		"# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e+00\n",
+		"# HELP rateRuleTestName\n# TYPE gauge\nrateRuleTestName 1.000000e+00\n",
 		stringRate)
 }
 
@@ -205,6 +215,50 @@ func TestStructNewStringAvg(t *testing.T) {
 	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 	stringAvg := structNewMetricString(newPrometheusMetric, avgValue, avgRule)
 	assert.Equal(t,
-		"# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.000000e+00\n",
+		"# HELP avgRuleTestName\n# TYPE gauge\navgRuleTestName 1.000000e+00\n",
 		stringAvg)
+}
+
+func TestFindDenominatorValue(t *testing.T) {
+	metricDimensions := []Dimension{}
+	metricDimensionsDiff := []Dimension{}
+	prometheusMetrics := []PrometheusMetric{}
+
+	// define dimensions
+	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
+	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
+	numeratorDimHash := convertDimensionsToHash(metricDimensions)
+	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
+
+	// define prometheusMetrics
+	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: numeratorDimHash}
+	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
+	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
+	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
+
+	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, "request_count")
+	assert.Equal(t, 2.0, denominatorValue)
+	assert.Equal(t, nil, errDenominator)
+}
+
+func TestFindDenominatorValueFailed(t *testing.T) {
+	metricDimensions := []Dimension{}
+	metricDimensionsDiff := []Dimension{}
+	prometheusMetrics := []PrometheusMetric{}
+
+	// define dimensions
+	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
+	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
+	numeratorDimHash := convertDimensionsToHash(metricDimensions)
+	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
+
+	// define prometheusMetrics
+	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: denominatorDimHash}
+	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
+	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
+	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
+
+	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, "request_count")
+	assert.Equal(t, 0.0, denominatorValue)
+	assert.NotEqual(t, nil, errDenominator)
 }

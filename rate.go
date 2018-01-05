@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	log "github.hpe.com/kronos/kelog"
 	"strconv"
 )
@@ -33,16 +32,4 @@ func calculateRate(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics
 		}
 	}
 	return newRateMetricString
-}
-
-func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric PrometheusMetric) string {
-	for _, oldMetric := range oldPrometheusMetrics {
-		if newPrometheusMetric.Name != oldMetric.Name {
-			continue
-		}
-		if bytes.Equal(newPrometheusMetric.DimensionHash, oldMetric.DimensionHash) {
-			return oldMetric.Value
-		}
-	}
-	return ""
 }

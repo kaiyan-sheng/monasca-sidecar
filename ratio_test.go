@@ -24,8 +24,8 @@ func TestCalculateRatio(t *testing.T) {
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
 	// 0.2 / 2.0 = 0.1
-	avgMetricString := calculateRatio(prometheusMetrics, ratioRule)
-	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge \nratioRuleTestName 1.000000e-01\n", avgMetricString)
+	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
+	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName 1.000000e-01\n", ratioMetricString)
 }
 
 func TestCalculateRatioWithDimensions(t *testing.T) {
@@ -56,8 +56,8 @@ func TestCalculateRatioWithDimensions(t *testing.T) {
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
 	// (2 + 1) / 2 = 1.5
-	avgMetricString := calculateRatio(prometheusMetrics, ratioRule)
-	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge \nratioRuleTestName{key1=value1,key2=value2} 1.000000e-01\n# HELP ratioRuleTestName\n# TYPE gauge \nratioRuleTestName{key3=value3,key4=value4} 2.000000e-02\n", avgMetricString)
+	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
+	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName{key1=value1,key2=value2} 1.000000e-01\n# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName{key3=value3,key4=value4} 2.000000e-02\n", ratioMetricString)
 }
 
 func TestCalculateRatioWithMisMatchDimensions(t *testing.T) {
@@ -88,62 +88,6 @@ func TestCalculateRatioWithMisMatchDimensions(t *testing.T) {
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
 	// (2 + 1) / 2 = 1.5
-	avgMetricString := calculateRatio(prometheusMetrics, ratioRule)
-	assert.Equal(t, "", avgMetricString)
-}
-
-func TestFindDenominatorValue(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	numeratorDimHash := convertDimensionsToHash(metricDimensions)
-	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: numeratorDimHash}
-	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-
-	// define ratioRule
-	ratioRuleParam := map[string]string{}
-	ratioRuleParam["numerator"] = "request_total_time"
-	ratioRuleParam["denominator"] = "request_count"
-	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
-
-	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, ratioRule)
-	assert.Equal(t, 2.0, denominatorValue)
-	assert.Equal(t, nil, errDenominator)
-}
-
-func TestFindDenominatorValueFailed(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	numeratorDimHash := convertDimensionsToHash(metricDimensions)
-	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: denominatorDimHash}
-	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-
-	// define ratioRule
-	ratioRuleParam := map[string]string{}
-	ratioRuleParam["numerator"] = "request_total_time"
-	ratioRuleParam["denominator"] = "request_count"
-	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
-
-	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, ratioRule)
-	assert.Equal(t, 0.0, denominatorValue)
-	assert.NotEqual(t, nil, errDenominator)
+	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
+	assert.Equal(t, "", ratioMetricString)
 }

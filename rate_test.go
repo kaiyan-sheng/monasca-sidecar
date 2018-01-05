@@ -25,7 +25,7 @@ func TestCalculateRate(t *testing.T) {
 
 	// (2 - 1) / 10.0 = 0.1
 	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName 1.000000e-01\n", rateMetricString)
+	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge\nrateRuleTestName 1.000000e-01\n", rateMetricString)
 }
 
 func TestCalculateRateNegative(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCalculateRateNegative(t *testing.T) {
 
 	// (1 - 2) / 10.0 = -0.1
 	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName -1.000000e-01\n", rateMetricString)
+	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge\nrateRuleTestName -1.000000e-01\n", rateMetricString)
 }
 
 func TestCalculateRateWithDimensions(t *testing.T) {
@@ -73,7 +73,7 @@ func TestCalculateRateWithDimensions(t *testing.T) {
 
 	// (2 - 1) / 10.0 = 0.1
 	rateMetricString := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rateRule)
-	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge \nrateRuleTestName{key2=value2,key1=value1} 1.000000e-01\n", rateMetricString)
+	assert.Equal(t, "# HELP rateRuleTestName\n# TYPE gauge\nrateRuleTestName{key2=value2,key1=value1} 1.000000e-01\n", rateMetricString)
 }
 
 func TestCalculateRateWithMisMatchDimensions(t *testing.T) {

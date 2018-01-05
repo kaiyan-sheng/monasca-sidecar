@@ -24,7 +24,7 @@ func TestCalculateAvg(t *testing.T) {
 
 	// (2 + 1) / 2 = 1.5
 	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
-	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName 1.500000e+00\n", avgMetricString)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge\navgRuleTestName 1.500000e+00\n", avgMetricString)
 }
 
 func TestCalculateAvgNegative(t *testing.T) {
@@ -44,7 +44,7 @@ func TestCalculateAvgNegative(t *testing.T) {
 
 	// (-1 - 2) / 2 = -1.5
 	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
-	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName -1.500000e+00\n", avgMetricString)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge\navgRuleTestName -1.500000e+00\n", avgMetricString)
 }
 
 func TestCalculateAvgWithDimensions(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCalculateAvgWithDimensions(t *testing.T) {
 
 	// (2 + 1) / 2 = 1.5
 	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
-	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge \navgRuleTestName{key2=value2,key1=value1} 1.500000e+00\n", avgMetricString)
+	assert.Equal(t, "# HELP avgRuleTestName\n# TYPE gauge\navgRuleTestName{key2=value2,key1=value1} 1.500000e+00\n", avgMetricString)
 }
 
 func TestCalculateAvgWithMisMatchDimensions(t *testing.T) {
