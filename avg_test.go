@@ -95,7 +95,7 @@ func TestCalculateAvgWithMisMatchDimensions(t *testing.T) {
 	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
 	// mismatch dimensions
-	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics,avgRule)
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
 	assert.Equal(t, "", avgMetricString)
 }
 
@@ -121,7 +121,7 @@ func TestCalculateAvgWithBadValueString(t *testing.T) {
 	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
 	// bad values
-	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics,avgRule)
+	avgMetricString := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, avgRule)
 	assert.Equal(t, "", avgMetricString)
 }
 
