@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	dto "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -93,7 +94,7 @@ func main() {
 
 	sidecarRules := parseYamlSidecarRules(rules)
 	// get all metric names from sidecar rules into metricNameArray
-	metricNameArray := getMetricNamesFromRules(sidecarRules)
+	// metricNameArray := getMetricNamesFromRules(sidecarRules)
 
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if queryInterval <= 0.0 || err != nil {
@@ -102,14 +103,7 @@ func main() {
 	}
 
 	// get prometheus url and prometheus metric response body
-	respBody := getPrometheusMetrics(annotations)
-	oldRateMetricString = respBody
-
-	// extract information about the metric into structure
-	oldPrometheusMetrics := []PrometheusMetric{}
-	for _, metricName := range metricNameArray {
-		oldPrometheusMetrics = responseBodyToStructure(respBody, metricName, oldPrometheusMetrics)
-	}
+	oldPrometheusMetrics := getPrometheusMetrics(annotations)
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
@@ -117,40 +111,40 @@ func main() {
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
-		newRateMetricString := ``
-		newAvgMetricString := ``
-		newRatioMetricString := ``
+		//newRateMetricString := ``
+		//newAvgMetricString := ``
+		//newRatioMetricString := ``
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
 		// get a new set of prometheus metrics
-		newRespBody := getPrometheusMetrics(annotations)
-		// extract information about the metric into structure
-		newPrometheusMetrics := []PrometheusMetric{}
-		for _, metricName := range metricNameArray {
-			newPrometheusMetrics = responseBodyToStructure(newRespBody, metricName, newPrometheusMetrics)
+		newPrometheusMetrics := getPrometheusMetrics(annotations)
+		fmt.Println("******** NEW *******")
+		for _, mf := range newPrometheusMetrics {
+			fmt.Println(mf)
 		}
 
 		// calculate by each sidecar rule
 		for _, rule := range sidecarRules {
 			if rule.Function == "rate" {
-				newRateMetricString += calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
+				newRateMetrics := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
+				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
 				fmt.Println(newRateMetricString)
 				fmt.Println("********************")
-			} else if rule.Function == "avg" {
-				newAvgMetricString += calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
-				fmt.Println(newAvgMetricString)
-				fmt.Println("********************")
-			} else if rule.Function == "ratio" {
-				newRatioMetricString += calculateRatio(newPrometheusMetrics, rule)
-				fmt.Println(newAvgMetricString)
-				fmt.Println("********************")
 			}
+			//} else if rule.Function == "avg" {
+			//	newAvgMetricString += calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
+			//	fmt.Println(newAvgMetricString)
+			//	fmt.Println("********************")
+			//} else if rule.Function == "ratio" {
+			//	newRatioMetricString += calculateRatio(newPrometheusMetrics, rule)
+			//	fmt.Println(newAvgMetricString)
+			//	fmt.Println("********************")
+			//}
 		}
 
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
-		oldRateMetricString = newRespBody + newRateMetricString
 	}
 }
 
@@ -198,7 +192,7 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 	return prometheusMetrics
 }
 
-func getPrometheusMetrics(annotations map[string]string) string {
+func getPrometheusMetrics(annotations map[string]string) []*dto.MetricFamily {
 	//get prometheus url
 	prometheusPort := annotations["prometheus.io/port"]
 	if prometheusPort == "" {
@@ -222,7 +216,8 @@ func getPrometheusMetrics(annotations map[string]string) string {
 	}
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
-	return string(respBody)
+	result, err := parsePrometheusMetricsToMetricFamilies(string(respBody))
+	return result
 }
 
 func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {

@@ -7,6 +7,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	log "github.hpe.com/kronos/kelog"
 	"gopkg.in/yaml.v2"
 	"sort"
@@ -148,4 +151,93 @@ func findOldValue(oldPrometheusMetrics []PrometheusMetric, newPrometheusMetric P
 		}
 	}
 	return ""
+}
+
+func checkEqualLabels(a, b []*dto.LabelPair) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+	for i, subA := range a {
+		if (*subA.Name) != *b[i].Name || *subA.Value != *b[i].Value {
+			return false
+		}
+	}
+	return true
+}
+
+func parsePrometheusMetricsToMetricFamilies(text string) ([]*dto.MetricFamily, error) {
+	var parser expfmt.TextParser
+	parsed, err := parser.TextToMetricFamilies(strings.NewReader(text))
+	if err != nil {
+		return nil, err
+	}
+	var result []*dto.MetricFamily
+	for _, mf := range parsed {
+		result = append(result, mf)
+	}
+	return result, nil
+}
+
+func convertMetricFamiliesIntoTextString(newMetricFamilies []*dto.MetricFamily) string {
+	// convert new metric families into text
+	out := &bytes.Buffer{}
+	for _, newMF := range newMetricFamilies {
+		expfmt.MetricFamilyToText(out, newMF)
+	}
+	return out.String()
+}
+
+func convertHistogramToGauge(histogramMetricFamilies *dto.MetricFamily) []*dto.MetricFamily {
+	reg := prometheus.NewRegistry()
+	histogramBucketMetric := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: *histogramMetricFamilies.Name + "_bucket",
+			Help: *histogramMetricFamilies.Help,
+		},
+		[]string{
+			"le",
+		},
+	)
+	histogramSumMetric := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: *histogramMetricFamilies.Name + "_sum",
+			Help: *histogramMetricFamilies.Help,
+		},
+	)
+	histogramCountMetric := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: *histogramMetricFamilies.Name + "_count",
+			Help: *histogramMetricFamilies.Help,
+		},
+	)
+	reg.MustRegister(histogramBucketMetric)
+	reg.MustRegister(histogramSumMetric)
+	reg.MustRegister(histogramCountMetric)
+	for _, histogramMetric := range histogramMetricFamilies.Metric {
+		histogramSumValue := float64(*histogramMetric.Histogram.SampleSum)
+		histogramSumMetric.Set(histogramSumValue)
+		histogramCountValue := float64(*histogramMetric.Histogram.SampleCount)
+		histogramCountMetric.Set(histogramCountValue)
+		histogramBuckets := histogramMetric.Histogram.Bucket
+		for _, hBucket := range histogramBuckets {
+			histogramValue := float64(*hBucket.CumulativeCount)
+			labelValue := strconv.FormatFloat(*hBucket.UpperBound, 'f', -1, 64)
+			histogramBucketMetric.WithLabelValues(labelValue).Set(histogramValue)
+		}
+	}
+
+	convertedHistogramMetricFamilies, err := reg.Gather()
+	if err != nil {
+		panic("unexpected behavior of custom test registry")
+	}
+
+	return convertedHistogramMetricFamilies
 }

@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/golang/protobuf/proto"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -154,11 +156,7 @@ func TestSplitRules(t *testing.T) {
   function: ratio
   parameters:
     numerator: request_total_time
-    denominator: request_count
-- metricName: *
-  function: omitDimensions
-  parameters:
-    dimensionNames: pod,container`
+    denominator: request_count`
 
 	ruleStruct := parseYamlSidecarRules(rules)
 	var expectedRules []SidecarRule
@@ -261,4 +259,116 @@ func TestFindDenominatorValueFailed(t *testing.T) {
 	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, "request_count")
 	assert.Equal(t, 0.0, denominatorValue)
 	assert.NotEqual(t, nil, errDenominator)
+}
+
+func TestParserTextToMetricFamilies(t *testing.T) {
+	text := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+`
+	result, _ := parsePrometheusMetricsToMetricFamilies(text)
+	expectLabelPairs := []*dto.LabelPair{
+		{Name: proto.String("method"), Value: proto.String("GET")},
+		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
+	}
+
+	for _, r := range result {
+		assert.Equal(t, "COUNTER", r.Type.String())
+		assert.Equal(t, "request_count", *r.Name)
+		metric := r.Metric
+		for _, m := range metric {
+			assert.Equal(t, "value:25 ", m.Counter.String())
+			assert.Equal(t, 25.0, m.Counter.GetValue())
+			assert.Equal(t, "<nil>", m.Gauge.String())
+			assert.Equal(t, "<nil>", m.Histogram.String())
+			assert.Equal(t, "<nil>", m.Summary.String())
+			assert.Equal(t, expectLabelPairs, m.Label)
+		}
+	}
+}
+
+func TestConvertMetricFamiliesToText(t *testing.T) {
+	text := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP http_requests_total The total number of HTTP requests.
+# TYPE http_requests_total counter
+http_requests_total{method="post",code="200"} 1027 1395066363000
+http_requests_total{method="post",code="400"}    3 1395066363000
+`
+	results, _ := parsePrometheusMetricsToMetricFamilies(text)
+	newResults := []*dto.MetricFamily{}
+	for _, r := range results {
+		if *r.Name != "request_count" {
+			newResults = append(newResults, r)
+		} else {
+			for _, requestCountMetric := range r.Metric {
+				requestCountLabels := requestCountMetric.Label
+				for _, newRate := range createNewRatePrometheus("request_count_rate", requestCountLabels, 0.25) {
+					newResults = append(newResults, newRate)
+				}
+
+			}
+		}
+	}
+	newResultsString := convertMetricFamiliesIntoTextString(newResults)
+
+	expectedNewString := `# HELP request_count_rate request_count_rate
+# TYPE request_count_rate gauge
+request_count_rate{method="GET",path="/rest/metrics"} 0.25
+# HELP http_requests_total The total number of HTTP requests.
+# TYPE http_requests_total counter
+http_requests_total{method="post",code="200"} 1027 1395066363000
+http_requests_total{method="post",code="400"} 3 1395066363000
+`
+	assert.Equal(t, expectedNewString, newResultsString)
+}
+
+func TestCalculateRateWithHistogram(t *testing.T) {
+	histogramMetricsString := `# A histogram, which has a pretty complex representation in the text format:
+# HELP http_request_duration_seconds A histogram of the request duration.
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{le="0.05"} 24054
+http_request_duration_seconds_bucket{le="0.1"} 33444
+http_request_duration_seconds_bucket{le="0.2"} 100392
+http_request_duration_seconds_bucket{le="0.5"} 129389
+http_request_duration_seconds_bucket{le="1"} 133988
+http_request_duration_seconds_bucket{le="+Inf"} 144320
+http_request_duration_seconds_sum 53423
+http_request_duration_seconds_count 144320
+`
+	//	newPrometheusMetricsString := `
+	//	# A histogram, which has a pretty complex representation in the text format:
+	//# HELP http_request_duration_seconds A histogram of the request duration.
+	//# TYPE http_request_duration_seconds histogram
+	//http_request_duration_seconds_bucket{le="0.05"} 25000
+	//http_request_duration_seconds_bucket{le="0.1"} 34000
+	//http_request_duration_seconds_bucket{le="0.2"} 101000
+	//http_request_duration_seconds_bucket{le="0.5"} 130000
+	//http_request_duration_seconds_bucket{le="1"} 135000
+	//http_request_duration_seconds_bucket{le="+Inf"} 149000
+	//http_request_duration_seconds_sum 60000
+	//http_request_duration_seconds_count 149000
+	//`
+	histogramMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(histogramMetricsString)
+	convertedHistogramMetricFamilies := convertHistogramToGauge(histogramMetricFamilies[0])
+	convertHistogramToGaugeString := convertMetricFamiliesIntoTextString(convertedHistogramMetricFamilies)
+	expectedString := `# HELP http_request_duration_seconds_bucket A histogram of the request duration.
+# TYPE http_request_duration_seconds_bucket gauge
+http_request_duration_seconds_bucket{le="+Inf"} 144320
+http_request_duration_seconds_bucket{le="0.05"} 24054
+http_request_duration_seconds_bucket{le="0.1"} 33444
+http_request_duration_seconds_bucket{le="0.2"} 100392
+http_request_duration_seconds_bucket{le="0.5"} 129389
+http_request_duration_seconds_bucket{le="1"} 133988
+# HELP http_request_duration_seconds_count A histogram of the request duration.
+# TYPE http_request_duration_seconds_count gauge
+http_request_duration_seconds_count 144320
+# HELP http_request_duration_seconds_sum A histogram of the request duration.
+# TYPE http_request_duration_seconds_sum gauge
+http_request_duration_seconds_sum 53423
+`
+	assert.Equal(t, expectedString, convertHistogramToGaugeString)
 }
