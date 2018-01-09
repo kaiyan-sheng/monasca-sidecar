@@ -3,28 +3,36 @@
 package main
 
 import (
+	dto "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
-	"strconv"
 )
 
-func calculateRatio(prometheusMetrics []PrometheusMetric, rule SidecarRule) string {
-	newRatioMetricString := ``
-	for _, pm := range prometheusMetrics {
-		if pm.Name == rule.Parameters["numerator"] {
+func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
+	newRatioMetric := []*dto.MetricFamily{}
+	prometheusMetricsWithNoHistogram := replaceHistogramToGauge(prometheusMetrics)
+
+	for _, pm := range prometheusMetricsWithNoHistogram {
+		if *pm.Name == rule.Parameters["numerator"] {
 			// get denominator value
-			numeratorValue, errNumerator := strconv.ParseFloat(pm.Value, 64)
-			if errNumerator != nil {
-				log.Errorf("Error converting strings to float64: %v", pm.Value)
-				continue
+			for _, metric := range pm.Metric {
+				numeratorValueString, numeratorValueFloat := getValueBasedOnType(*pm.Type, *metric)
+				if numeratorValueString == "" {
+					log.Errorf("Error getting numerator value from prometheus metric: %v", *pm.Name)
+					continue
+				}
+				denominatorValueString, denominatorValueFloat := findDenominatorValue(prometheusMetricsWithNoHistogram, metric.Label, rule.Parameters["denominator"])
+				if denominatorValueString == "" && denominatorValueFloat == 0.0 {
+					log.Errorf("Error getting denominator value from prometheus metric: %v", *pm.Name)
+					continue
+				}
+				ratio := numeratorValueFloat / denominatorValueFloat
+				// store ratio metric into a new metric family
+				for _, newRatio := range createNewMetricFamilies(rule.Name, metric.Label, ratio) {
+					newRatioMetric = append(newRatioMetric, newRatio)
+				}
 			}
-			denominatorValue, err := findDenominatorValue(prometheusMetrics, pm.DimensionHash, rule.Parameters["denominator"])
-			if err != nil {
-				continue
-			}
-			ratio := numeratorValue / denominatorValue
-			// store ratio metric into a new string
-			newRatioMetricString += structNewMetricString(pm, ratio, rule)
 		}
 	}
-	return newRatioMetricString
+	log.Infof("Successfully calculated ratio for rule ", rule.Name)
+	return newRatioMetric
 }

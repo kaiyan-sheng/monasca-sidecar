@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFindOldValueWithMetricFamily(t *testing.T) {
+func TestFindOldValueWithMetricFamilyRate(t *testing.T) {
 	oldPrometheusMetricsString := `
 # HELP request_count Counts requests by method and path
 # TYPE request_count counter
@@ -103,7 +103,7 @@ request_count{method="POST",path="/rest/support/2"} 20
 	assert.Equal(t, "", rateMetricString)
 }
 
-func TestFindOldValueWithHistogram(t *testing.T) {
+func TestFindOldValueWithHistogramRate(t *testing.T) {
 	oldPrometheusMetricsString := `# A histogram, which has a pretty complex representation in the text format:
 # HELP http_request_duration_seconds A histogram of the request duration.
 # TYPE http_request_duration_seconds histogram

@@ -3,33 +3,36 @@
 package main
 
 import (
+	dto "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
-	"strconv"
 )
 
-func calculateAvg(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics []PrometheusMetric, rule SidecarRule) string {
-	newAvgMetricString := ``
+func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
+	newAvgMetric := []*dto.MetricFamily{}
+	newPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(newPrometheusMetrics)
+	oldPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(oldPrometheusMetrics)
 	// find old value and new value
-	for _, pm := range newPrometheusMetrics {
-		if pm.Name == rule.Parameters["name"] {
-			oldValueString := findOldValue(oldPrometheusMetrics, pm)
-			if oldValueString != "" {
-				// calculate avg
-				newValue, errNew := strconv.ParseFloat(pm.Value, 64)
-				if errNew != nil {
-					log.Errorf("Error converting strings to float64: %v", pm.Value)
-					continue
+	for _, pm := range newPrometheusMetricsWithNoHistogram {
+		newMName := *pm.Name
+		newMType := *pm.Type
+		if *pm.Name == rule.Parameters["name"] {
+			for _, newM := range pm.Metric {
+				oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldPrometheusMetricsWithNoHistogram, newM, newMName, newMType)
+				if oldValueString != "" {
+					// calculate avg
+					newValueString, newValueFloat := getValueBasedOnType(newMType, *newM)
+					if newValueString == "" {
+						log.Errorf("Error getting values from new prometheus metric: %v", newMName)
+						continue
+					}
+					avg := (newValueFloat + oldValueFloat) / 2.0
+					// store avg metric into a new metric family
+					for _, newAvg := range createNewMetricFamilies(rule.Name, newM.Label, avg) {
+						newAvgMetric = append(newAvgMetric, newAvg)
+					}
 				}
-				oldValue, errOld := strconv.ParseFloat(oldValueString, 64)
-				if errOld != nil {
-					log.Errorf("Error converting strings to float64: %v", oldValueString)
-					continue
-				}
-				avg := (newValue + oldValue) / 2.0
-				// store avg metric into a new string
-				newAvgMetricString += structNewMetricString(pm, avg, rule)
 			}
 		}
 	}
-	return newAvgMetricString
+	return newAvgMetric
 }

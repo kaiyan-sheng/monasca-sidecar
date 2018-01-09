@@ -111,9 +111,9 @@ func main() {
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
-		//newRateMetricString := ``
-		//newAvgMetricString := ``
-		//newRatioMetricString := ``
+		newRateMetricStringTotal := ``
+		newAvgMetricStringTotal := ``
+		newRatioMetricStringTotal := ``
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
@@ -129,19 +129,23 @@ func main() {
 			if rule.Function == "rate" {
 				newRateMetrics := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
 				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
-				fmt.Println(newRateMetricString)
-				fmt.Println("********************")
+				newRateMetricStringTotal += newRateMetricString
+			} else if rule.Function == "avg" {
+				newAvgMetrics := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				newAvgMetricString := convertMetricFamiliesIntoTextString(newAvgMetrics)
+				newAvgMetricStringTotal += newAvgMetricString
+			} else if rule.Function == "ratio" {
+				newRatioMetrics := calculateRatio(newPrometheusMetrics, rule)
+				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
+				newRatioMetricStringTotal += newRatioMetricString
 			}
-			//} else if rule.Function == "avg" {
-			//	newAvgMetricString += calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
-			//	fmt.Println(newAvgMetricString)
-			//	fmt.Println("********************")
-			//} else if rule.Function == "ratio" {
-			//	newRatioMetricString += calculateRatio(newPrometheusMetrics, rule)
-			//	fmt.Println(newAvgMetricString)
-			//	fmt.Println("********************")
-			//}
 		}
+		fmt.Println(newRateMetricStringTotal)
+		fmt.Println("********************")
+		fmt.Println(newAvgMetricStringTotal)
+		fmt.Println("********************")
+		fmt.Println(newRatioMetricStringTotal)
+		fmt.Println("********************")
 
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics

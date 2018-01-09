@@ -8,86 +8,84 @@ import (
 )
 
 func TestCalculateRatio(t *testing.T) {
-	metricDimensions := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions}
-	prometheusMetric2 := PrometheusMetric{Name: "request_total_time", Value: "0.2", Dimensions: metricDimensions}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-
+	prometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 30
+request_count{method="POST",path="/rest/support"} 20
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.3
+request_total_time{method="POST",path="/rest/support"} 0.5
+`
+	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
 	ratioRuleParam["denominator"] = "request_count"
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
-	// 0.2 / 2.0 = 0.1
-	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
-	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName 1.000000e-01\n", ratioMetricString)
-}
-
-func TestCalculateRatioWithDimensions(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensions = append(metricDimensions, Dimension{Key: "key2", Value: "value2"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key4", Value: "value4"})
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
-	prometheusMetric2 := PrometheusMetric{Name: "request_total_time", Value: "0.2", Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
-	prometheusMetric3 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: convertDimensionsToHash(metricDimensionsDiff)}
-	prometheusMetric4 := PrometheusMetric{Name: "request_total_time", Value: "0.1", Dimensions: metricDimensionsDiff, DimensionHash: convertDimensionsToHash(metricDimensionsDiff)}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric3)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric4)
-
-	// define ratioRule
-	ratioRuleParam := map[string]string{}
-	ratioRuleParam["numerator"] = "request_total_time"
-	ratioRuleParam["denominator"] = "request_count"
-	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
-
-	// (2 + 1) / 2 = 1.5
-	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
-	assert.Equal(t, "# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName{key1=value1,key2=value2} 1.000000e-01\n# HELP ratioRuleTestName\n# TYPE gauge\nratioRuleTestName{key3=value3,key4=value4} 2.000000e-02\n", ratioMetricString)
+	// 0.3 / 30 = 0.01
+	// 0.5 / 20 = 0.025
+	ratioMetricFamilies := calculateRatio(metricFamilies, ratioRule)
+	ratioMetricString := convertMetricFamiliesIntoTextString(ratioMetricFamilies)
+	expectedRatioMetricString := `# HELP ratioRuleTestName ratioRuleTestName
+# TYPE ratioRuleTestName gauge
+ratioRuleTestName{method="GET",path="/rest/metrics"} 0.01
+# HELP ratioRuleTestName ratioRuleTestName
+# TYPE ratioRuleTestName gauge
+ratioRuleTestName{method="POST",path="/rest/support"} 0.025
+`
+	assert.Equal(t, expectedRatioMetricString, ratioMetricString)
 }
 
 func TestCalculateRatioWithMisMatchDimensions(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensions = append(metricDimensions, Dimension{Key: "key2", Value: "value2"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key4", Value: "value4"})
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
-	prometheusMetric2 := PrometheusMetric{Name: "request_total_time", Value: "0.2", Dimensions: metricDimensionsDiff, DimensionHash: convertDimensionsToHash(metricDimensionsDiff)}
-	prometheusMetric3 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
-	prometheusMetric4 := PrometheusMetric{Name: "request_total_time", Value: "0.1", Dimensions: metricDimensionsDiff, DimensionHash: convertDimensionsToHash(metricDimensionsDiff)}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric3)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric4)
-
+	prometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics/1"} 25
+request_count{method="POST",path="/rest/support/1"} 10
+`
+	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
 	ratioRuleParam["denominator"] = "request_count"
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
-	// (2 + 1) / 2 = 1.5
-	ratioMetricString := calculateRatio(prometheusMetrics, ratioRule)
+	ratioMetricFamilies := calculateRatio(metricFamilies, ratioRule)
+	ratioMetricString := convertMetricFamiliesIntoTextString(ratioMetricFamilies)
 	assert.Equal(t, "", ratioMetricString)
+}
+
+func TestFindOldValueWithHistogramRatio(t *testing.T) {
+	prometheusMetricsString := `# A histogram, which has a pretty complex representation in the text format:
+# HELP http_request_duration_seconds A histogram of the request duration.
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{le="0.05"} 24054
+http_request_duration_seconds_bucket{le="0.1"} 33444
+http_request_duration_seconds_bucket{le="0.2"} 100392
+http_request_duration_seconds_bucket{le="0.5"} 129389
+http_request_duration_seconds_bucket{le="1"} 133988
+http_request_duration_seconds_bucket{le="+Inf"} 200000
+http_request_duration_seconds_sum 50000
+http_request_duration_seconds_count 200000
+`
+	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	// define ratioRule
+	// define ratioRule
+	ratioRuleParam := map[string]string{}
+	ratioRuleParam["numerator"] = "http_request_duration_seconds_sum"
+	ratioRuleParam["denominator"] = "http_request_duration_seconds_count"
+	ratioRule := SidecarRule{Name: "ratioRuleTestHistogramName", Function: "ratio", Parameters: ratioRuleParam}
+
+	ratioMetricFamiliesBucket := calculateRatio(metricFamilies, ratioRule)
+	ratioMetricStringBucket := convertMetricFamiliesIntoTextString(ratioMetricFamiliesBucket)
+
+	// 50000 / 200000 = 0.25
+	expectedResultBucket := `# HELP ratioRuleTestHistogramName ratioRuleTestHistogramName
+# TYPE ratioRuleTestHistogramName gauge
+ratioRuleTestHistogramName 0.25
+`
+	assert.Equal(t, expectedResultBucket, ratioMetricStringBucket)
 }

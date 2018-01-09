@@ -3,49 +3,54 @@
 package main
 
 import (
+	dto "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
-	"strconv"
 )
 
-func calculateDeltaRatio(newPrometheusMetrics []PrometheusMetric, oldPrometheusMetrics []PrometheusMetric, rule SidecarRule) string {
+func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
 	// deltaRatio = (newNumeratorValue - oldNumeratorValue) / (newDenominatorValue - oldDenominatorValue)
-	newDeltaRatioMetricString := ``
+	newDeltaRatioMetric := []*dto.MetricFamily{}
+	newPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(newPrometheusMetrics)
+	oldPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(oldPrometheusMetrics)
 	// find old value and new value
-	for _, pm := range newPrometheusMetrics {
-		if pm.Name == rule.Parameters["numerator"] {
-			oldValueString := findOldValue(oldPrometheusMetrics, pm)
-			if oldValueString != "" {
-				// calculate deltaNumeratorValue
-				newNumeratorValue, errNew := strconv.ParseFloat(pm.Value, 64)
-				if errNew != nil {
-					log.Errorf("Error converting strings to float64: %v", pm.Value)
-					continue
-				}
-				oldNumeratorValue, errOld := strconv.ParseFloat(oldValueString, 64)
-				if errOld != nil {
-					log.Errorf("Error converting strings to float64: %v", oldValueString)
-					continue
-				}
-				deltaNumeratorValue := newNumeratorValue - oldNumeratorValue
+	for _, pm := range newPrometheusMetricsWithNoHistogram {
+		if *pm.Name == rule.Parameters["numerator"] {
+			newMName := *pm.Name
+			newMType := *pm.Type
+			for _, newM := range pm.Metric {
+				oldNumeratorValueString, oldNumeratorValueFloat := findOldValueWithMetricFamily(oldPrometheusMetricsWithNoHistogram, newM, newMName, newMType)
+				if oldNumeratorValueString != "" {
+					// calculate deltaNumeratorValue
+					newNumeratorValueString, newNumeratorValueFloat := getValueBasedOnType(newMType, *newM)
+					if newNumeratorValueString == "" {
+						log.Errorf("Error getting new numerator value from new prometheus metric: %v", newMName)
+						continue
+					}
+					deltaNumeratorValue := newNumeratorValueFloat - oldNumeratorValueFloat
 
-				// get new denominator value
-				newDenominatorValue, errDenomNew := findDenominatorValue(newPrometheusMetrics, pm.DimensionHash, rule.Parameters["denominator"])
-				if errDenomNew != nil {
-					continue
-				}
-				// get old denominator value
-				oldDenominatorValue, errDenomOld := findDenominatorValue(oldPrometheusMetrics, pm.DimensionHash, rule.Parameters["denominator"])
-				if errDenomOld != nil {
-					continue
-				}
-				deltaDenominatorValue := newDenominatorValue - oldDenominatorValue
+					// get new denominator value
+					newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(newPrometheusMetricsWithNoHistogram, newM.Label, rule.Parameters["denominator"])
+					if newDenominatorValueString == "" {
+						log.Errorf("Error getting new denominator value from new prometheus metric: %v", newMName)
+						continue
+					}
+					// get old denominator value
+					oldDenominatorValueString, oldDenominatorValueFloat := findDenominatorValue(oldPrometheusMetricsWithNoHistogram, newM.Label, rule.Parameters["denominator"])
+					if oldDenominatorValueString == "" {
+						log.Errorf("Error getting old denominator value from old prometheus metric: %v", newMName)
+						continue
+					}
+					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
 
-				// calculate ratio
-				deltaRatioValue := deltaNumeratorValue / deltaDenominatorValue
-				// store deltaRatio metric into a new string
-				newDeltaRatioMetricString += structNewMetricString(pm, deltaRatioValue, rule)
+					// calculate ratio
+					deltaRatioValue := deltaNumeratorValue / deltaDenominatorValue
+					// store delta ratio metric into a new metric family
+					for _, newDeltaRatio := range createNewMetricFamilies(rule.Name, newM.Label, deltaRatioValue) {
+						newDeltaRatioMetric = append(newDeltaRatioMetric, newDeltaRatio)
+					}
+				}
 			}
 		}
 	}
-	return newDeltaRatioMetricString
+	return newDeltaRatioMetric
 }

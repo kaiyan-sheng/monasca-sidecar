@@ -218,47 +218,9 @@ func TestStructNewStringAvg(t *testing.T) {
 }
 
 func TestFindDenominatorValue(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	numeratorDimHash := convertDimensionsToHash(metricDimensions)
-	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: numeratorDimHash}
-	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-
-	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, "request_count")
-	assert.Equal(t, 2.0, denominatorValue)
-	assert.Equal(t, nil, errDenominator)
 }
 
 func TestFindDenominatorValueFailed(t *testing.T) {
-	metricDimensions := []Dimension{}
-	metricDimensionsDiff := []Dimension{}
-	prometheusMetrics := []PrometheusMetric{}
-
-	// define dimensions
-	metricDimensions = append(metricDimensions, Dimension{Key: "key1", Value: "value1"})
-	metricDimensionsDiff = append(metricDimensionsDiff, Dimension{Key: "key3", Value: "value3"})
-	numeratorDimHash := convertDimensionsToHash(metricDimensions)
-	denominatorDimHash := convertDimensionsToHash(metricDimensionsDiff)
-
-	// define prometheusMetrics
-	prometheusMetric1 := PrometheusMetric{Name: "request_count", Value: "2.0", Dimensions: metricDimensions, DimensionHash: denominatorDimHash}
-	prometheusMetric2 := PrometheusMetric{Name: "request_count", Value: "5.0", Dimensions: metricDimensionsDiff, DimensionHash: denominatorDimHash}
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric1)
-	prometheusMetrics = append(prometheusMetrics, prometheusMetric2)
-
-	denominatorValue, errDenominator := findDenominatorValue(prometheusMetrics, numeratorDimHash, "request_count")
-	assert.Equal(t, 0.0, denominatorValue)
-	assert.NotEqual(t, nil, errDenominator)
 }
 
 func TestParserTextToMetricFamilies(t *testing.T) {
@@ -306,7 +268,7 @@ http_requests_total{method="post",code="400"}    3 1395066363000
 		} else {
 			for _, requestCountMetric := range r.Metric {
 				requestCountLabels := requestCountMetric.Label
-				for _, newRate := range createNewRatePrometheus("request_count_rate", requestCountLabels, 0.25) {
+				for _, newRate := range createNewMetricFamilies("request_count_rate", requestCountLabels, 0.25) {
 					newResults = append(newResults, newRate)
 				}
 
