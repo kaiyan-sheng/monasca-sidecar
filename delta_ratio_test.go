@@ -129,3 +129,108 @@ deltaRatioRuleTestHistogramName 0.5
 `
 	assert.Equal(t, expectedResult, deltaRatioMetricString)
 }
+
+func TestCalculateDeltaRatioInf(t *testing.T) {
+	oldPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	newPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.6
+`
+	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	// define deltaRatioRule
+	deltaRatioRuleParam := map[string]string{}
+	deltaRatioRuleParam["numerator"] = "request_total_time"
+	deltaRatioRuleParam["denominator"] = "request_count"
+	deltaRatioRule := SidecarRule{Name: "deltaRatioRuleTestName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
+
+	// (0.6 - 0.5) / (25 - 25) = +Inf
+	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
+	expectedDeltaRatioMetricString := `# HELP deltaRatioRuleTestName deltaRatioRuleTestName
+# TYPE deltaRatioRuleTestName gauge
+deltaRatioRuleTestName{method="GET",path="/rest/metrics"} +Inf
+`
+	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
+}
+
+func TestCalculateDeltaRatioZero(t *testing.T) {
+	oldPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 24
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	newPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	// define deltaRatioRule
+	deltaRatioRuleParam := map[string]string{}
+	deltaRatioRuleParam["numerator"] = "request_total_time"
+	deltaRatioRuleParam["denominator"] = "request_count"
+	deltaRatioRule := SidecarRule{Name: "deltaRatioRuleTestName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
+
+	// (0.5 - 0.5) / (25 - 24) = 0
+	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
+	expectedDeltaRatioMetricString := `# HELP deltaRatioRuleTestName deltaRatioRuleTestName
+# TYPE deltaRatioRuleTestName gauge
+deltaRatioRuleTestName{method="GET",path="/rest/metrics"} 0
+`
+	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
+}
+
+func TestCalculateDeltaRatioNaN(t *testing.T) {
+	oldPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	newPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	// define deltaRatioRule
+	deltaRatioRuleParam := map[string]string{}
+	deltaRatioRuleParam["numerator"] = "request_total_time"
+	deltaRatioRuleParam["denominator"] = "request_count"
+	deltaRatioRule := SidecarRule{Name: "deltaRatioRuleTestName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
+
+	// (0.5 - 0.5) / (25 - 25) = NaN
+	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
+	expectedDeltaRatioMetricString := `# HELP deltaRatioRuleTestName deltaRatioRuleTestName
+# TYPE deltaRatioRuleTestName gauge
+deltaRatioRuleTestName{method="GET",path="/rest/metrics"} NaN
+`
+	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
+}
