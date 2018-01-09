@@ -4,14 +4,35 @@ A push-pull metric forwarder bridging Monasca and Prometheus.
 ## Usage
 1. Add metric list, query interval and listen port to calculate rate. 
 In helm/templates/deployment.yaml
+
 ```
-        sidecar/metric-names: "request_total_time,go_gc_duration_seconds,request_count"
-        sidecar/query-interval: "30"
-        sidecar/listen-port: "9999"
+sidecar/query-interval: "30"
+sidecar/listen-port: "9999"
+sidecar/rules: |
+  - metricName: request_ratio
+    function: ratio
+    parameters:
+      numerator: request_total_time
+      denominator: request_count
+  - metricName: request_delta_ratio
+    function: deltaRatio
+    parameters:
+      numerator: request_total_time
+      denominator: request_count
+  - metricName: request_time_avg
+    function: avg
+    parameters:
+      name: request_total_time
+  - metricName: request_count_rate
+    function: rate
+    parameters:
+      name: request_count
+
 ```
 
 2. Add sidecar container into deployment.yaml and expose pod name and namespace from environment variables. 
 In helm/templates/deployment.yaml
+
 ```
       - name: {{ template "name" . }}-sidecar-container
         image: "{{ .Values.sidecar_container.image.repository }}:{{ .Values.sidecar_container.image.tag }}"
@@ -36,6 +57,7 @@ In helm/templates/deployment.yaml
 
 3. Add image information, resource and etc for sidecar container. 
 In values.yaml
+
 ```
 sidecar_container:
   log_level: info
@@ -50,4 +72,30 @@ sidecar_container:
     limits:
       memory: 256Mi
       cpu: 100m
+```
+
+## Support Functions
+
+1. ratio
+
+```
+ratio = numerator / denominator
+```
+
+2. deltaRatio
+
+```
+deltaRatio = (numeratorNew - numeratorOld) / (denominatorNew - denominatorOld)
+```
+
+3. avg
+
+```
+avg = (metricValueNew + metricValueOld) / 2
+```
+
+4. rate
+
+```
+rate = (metricValueNew - metricValueOld) / queryInterval
 ```
