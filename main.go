@@ -58,7 +58,7 @@ func main() {
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
 		// os.Exit(1)
-		podName = "ms-api-api-4195849451-1qm50"
+		podName = "ms-api-api-3497288618-lh272"
 	}
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
@@ -112,6 +112,8 @@ func main() {
 		newRateMetricStringTotal := ``
 		newAvgMetricStringTotal := ``
 		newRatioMetricStringTotal := ``
+		newDeltaRatioMetricStringTotal := ``
+
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
@@ -132,15 +134,23 @@ func main() {
 				newRatioMetrics := calculateRatio(newPrometheusMetrics, rule)
 				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
 				newRatioMetricStringTotal += newRatioMetricString
+			} else if rule.Function == "deltaRatio" {
+				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
+				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
 			}
+
 		}
+		fmt.Println("********************")
 		fmt.Println("newRateMetricStringTotal = ", newRateMetricStringTotal)
 		fmt.Println("********************")
 		fmt.Println("newAvgMetricStringTotal = ", newAvgMetricStringTotal)
 		fmt.Println("********************")
 		fmt.Println("newRatioMetricStringTotal = ", newRatioMetricStringTotal)
 		fmt.Println("********************")
-		oldRateMetricString = newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + convertMetricFamiliesIntoTextString(newPrometheusMetrics)
+		fmt.Println("newDeltaRatioMetricStringTotal = ", newDeltaRatioMetricStringTotal)
+		fmt.Println("********************")
+		oldRateMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
 	}
