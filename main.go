@@ -18,21 +18,7 @@ import (
 	"time"
 )
 
-type Dimension struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-type DimensionList []Dimension
-
-type PrometheusMetric struct {
-	Name          string        `json:"name"`
-	Value         string        `json:"value"`
-	Dimensions    DimensionList `json:"dimensions"`
-	DimensionHash []byte        `json:"hashcode"`
-}
-
-var oldRateMetricString = ``
+var oldPrometheusMetricString = ``
 
 func main() {
 	val, ok := os.LookupEnv("LOG_LEVEL")
@@ -101,7 +87,7 @@ func main() {
 
 	// get prometheus url and prometheus metric response body
 	oldPrometheusMetrics := getPrometheusMetrics(annotations)
-	oldRateMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
+	oldPrometheusMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
@@ -122,24 +108,24 @@ func main() {
 
 		// calculate by each sidecar rule
 		for _, rule := range sidecarRules {
-			if rule.Function == "rate" {
+			switch rule.Function {
+			case "rate":
 				newRateMetrics := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
 				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
 				newRateMetricStringTotal += newRateMetricString
-			} else if rule.Function == "avg" {
+			case "avg":
 				newAvgMetrics := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
 				newAvgMetricString := convertMetricFamiliesIntoTextString(newAvgMetrics)
 				newAvgMetricStringTotal += newAvgMetricString
-			} else if rule.Function == "ratio" {
+			case "ratio":
 				newRatioMetrics := calculateRatio(newPrometheusMetrics, rule)
 				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
 				newRatioMetricStringTotal += newRatioMetricString
-			} else if rule.Function == "deltaRatio" {
+			case "deltaRatio":
 				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetrics, oldPrometheusMetrics, rule)
 				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
 				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
 			}
-
 		}
 		fmt.Println("********************")
 		fmt.Println("newRateMetricStringTotal = ", newRateMetricStringTotal)
@@ -150,54 +136,10 @@ func main() {
 		fmt.Println("********************")
 		fmt.Println("newDeltaRatioMetricStringTotal = ", newDeltaRatioMetricStringTotal)
 		fmt.Println("********************")
-		oldRateMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
+		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
 	}
-}
-
-func responseBodyToStructure(respBody string, metricName string, prometheusMetrics []PrometheusMetric) []PrometheusMetric {
-	// Find metric name and parse the response body string
-	if !strings.Contains(respBody, metricName) {
-		log.Infof("Prometheus metrics does not include %v", metricName)
-		return prometheusMetrics
-	}
-
-	splitWithName := strings.Split(respBody, "# HELP "+metricName)
-	metricString := strings.Split(splitWithName[1], "# HELP")[0]
-
-	// Convert a string into structure
-	metricStringLines := strings.Split(metricString, "\n")
-	// Conver each line
-	for _, i := range metricStringLines[2:] {
-		metricSplit := strings.Split(i, " ")
-		if len(metricSplit) > 1 {
-			metricDimensions := []Dimension{}
-			//get metric value
-			metricValue := metricSplit[1]
-			//get metric name
-			if strings.ContainsAny(string(i), "{") {
-				iMetricName := strings.Split(string(i), "{")[0]
-				// get dimensions
-				dimensions := stringBetween(string(i), "{", "}")
-				splitDims := strings.Split(dimensions, ",")
-				for _, d := range splitDims {
-					split_each_dim := strings.Split(d, "=")
-					dim := Dimension{Key: split_each_dim[0], Value: split_each_dim[1]}
-					metricDimensions = append(metricDimensions, dim)
-				}
-				sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(sortedMetricDimensions)}
-				prometheusMetrics = append(prometheusMetrics, pm)
-			} else {
-				iMetricName := metricSplit[0]
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
-				prometheusMetrics = append(prometheusMetrics, pm)
-			}
-
-		}
-	}
-	return prometheusMetrics
 }
 
 func getPrometheusMetrics(annotations map[string]string) []*dto.MetricFamily {
@@ -215,21 +157,27 @@ func getPrometheusMetrics(annotations map[string]string) []*dto.MetricFamily {
 
 	prometheusUrl := getPrometheusUrl(prometheusPort, prometheusPath)
 
-	resp, err := http.Get(prometheusUrl)
-	if err != nil {
+	resp, errGetProm := http.Get(prometheusUrl)
+	if errGetProm != nil {
 		log.Fatalf("Error scraping prometheus endpoint")
 	}
 	if resp.ContentLength == 0 {
 		log.Warnf("No prometheus metric from %v", prometheusUrl)
 	}
 	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
-	result, err := parsePrometheusMetricsToMetricFamilies(string(respBody))
+	respBody, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		log.Fatalf("Error reading response body")
+	}
+	result, errParse := parsePrometheusMetricsToMetricFamilies(string(respBody))
+	if errParse != nil {
+		log.Fatalf("Error parsing prometheus metrics to metric families")
+	}
 	return result
 }
 
 func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, oldRateMetricString) // send data to client side
+	fmt.Fprintf(w, oldPrometheusMetricString) // send data to client side
 }
 
 func getPodAnnotations(namespace string, podName string) (map[string]string, error) {
@@ -250,26 +198,9 @@ func getPodAnnotations(namespace string, podName string) (map[string]string, err
 		log.Errorf("Pod %v not found in namespace %v.", podName, namespace)
 	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
 		log.Errorf("Error getting pod %v in namespace %v: %v", podName, namespace, statusError.ErrStatus.Message)
-	} else if err != nil {
 	} else {
 		log.Infof("Found pod %v in namespace %v", podName, namespace)
 		annotations = podGet.Annotations
 	}
 	return annotations, err
-}
-
-func getMetricNamesFromRules(sidecarRules []SidecarRule) []string {
-	metricNames := []string{}
-	for _, rule := range sidecarRules {
-		if rule.Function == "rate" {
-			metricNames = append(metricNames, rule.Parameters["name"])
-		} else if rule.Function == "avg" {
-			metricNames = append(metricNames, rule.Parameters["name"])
-		} else if rule.Function == "ratio" {
-			metricNames = append(metricNames, rule.Parameters["numerator"])
-			metricNames = append(metricNames, rule.Parameters["demoninator"])
-		}
-	}
-	metricNameArray := removeDuplicates(metricNames)
-	return metricNameArray
 }

@@ -4,14 +4,11 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	log "github.hpe.com/kronos/kelog"
 	"gopkg.in/yaml.v2"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -57,20 +54,6 @@ func getPrometheusUrl(prometheusPort string, prometheusPath string) string {
 	return prometheusUrl
 }
 
-func convertDimensionsToHash(dimensions []Dimension) []byte {
-	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("%v", dimensions)))
-	dimensionHash := h.Sum(nil)
-	return dimensionHash
-}
-
-func sortDimensionsByKeys(dimensions DimensionList) DimensionList {
-	sort.SliceStable(dimensions[:], func(i, j int) bool {
-		return dimensions[i].Key < dimensions[j].Key
-	})
-	return dimensions
-}
-
 func parseYamlSidecarRules(rules string) []SidecarRule {
 	var ruleStruct []SidecarRule
 	source := []byte(rules)
@@ -79,43 +62,6 @@ func parseYamlSidecarRules(rules string) []SidecarRule {
 		log.Fatalf("Error parsing sidecar rules: ", err)
 	}
 	return ruleStruct
-}
-
-func removeDuplicates(elements []string) []string {
-	// Use map to record duplicates as we find them.
-	encountered := map[string]bool{}
-	result := []string{}
-
-	for v := range elements {
-		if encountered[elements[v]] == true {
-			// Do not add duplicate.
-		} else {
-			// Record this element as an encountered element.
-			encountered[elements[v]] = true
-			// Append to result slice.
-			result = append(result, elements[v])
-		}
-	}
-	// Return the new slice.
-	return result
-}
-
-func dimensionsToString(dimensions []Dimension) string {
-	if len(dimensions) == 0 {
-		return ""
-	}
-	dimString := `{`
-	for _, dim := range dimensions {
-		dimKeyValue := dim.Key + "=" + dim.Value + ","
-		dimString += dimKeyValue
-	}
-	dimString = dimString[0:len(dimString)-1] + "}"
-	return dimString
-}
-
-func structNewMetricString(pm PrometheusMetric, newMetricValue float64, rule SidecarRule) string {
-	newMetricName := rule.Name
-	return "# HELP " + newMetricName + "\n" + "# TYPE gauge\n" + newMetricName + dimensionsToString(pm.Dimensions) + " " + strconv.FormatFloat(newMetricValue, 'e', 6, 64) + "\n"
 }
 
 func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels []*dto.LabelPair, denominatorName string) (string, float64) {
@@ -265,7 +211,7 @@ func getLabels(metricLabels []*dto.LabelPair) ([]string, map[string]string) {
 	return labelKeysArray, labelMap
 }
 
-func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair, newMetricValue float64) []*dto.MetricFamily {
+func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair, newMetricValue float64) *dto.MetricFamily {
 	labelKeysArray, labelMap := getLabels(metricLabels)
 	reg := prometheus.NewRegistry()
 	metricFamily := prometheus.NewGaugeVec(
@@ -281,7 +227,7 @@ func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair
 	if err != nil || len(newMetricFamilies) != 1 {
 		panic("unexpected behavior of custom test registry")
 	}
-	return newMetricFamilies
+	return newMetricFamilies[0]
 }
 
 func replaceHistogramToGauge(prometheusMetrics []*dto.MetricFamily) []*dto.MetricFamily {

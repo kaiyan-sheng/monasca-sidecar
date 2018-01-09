@@ -18,7 +18,8 @@ request_count{method="POST",path="/rest/support"} 20
 request_total_time{method="GET",path="/rest/metrics"} 0.3
 request_total_time{method="POST",path="/rest/support"} 0.5
 `
-	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
@@ -46,7 +47,8 @@ func TestCalculateRatioWithMisMatchDimensions(t *testing.T) {
 request_count{method="GET",path="/rest/metrics/1"} 25
 request_count{method="POST",path="/rest/support/1"} 10
 `
-	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
@@ -71,7 +73,8 @@ http_request_duration_seconds_bucket{le="+Inf"} 200000
 http_request_duration_seconds_sum 50000
 http_request_duration_seconds_count 200000
 `
-	metricFamilies, _ := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
 	// define ratioRule
 	// define ratioRule
 	ratioRuleParam := map[string]string{}

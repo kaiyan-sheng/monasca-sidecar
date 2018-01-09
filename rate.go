@@ -27,9 +27,7 @@ func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetric
 					}
 					rate := (newValueFloat - oldValueFloat) / queryInterval
 					// store rate metric into a new metric family
-					for _, newRate := range createNewMetricFamilies(rule.Name, newM.Label, rate) {
-						newRateMetric = append(newRateMetric, newRate)
-					}
+					newRateMetric = append(newRateMetric, createNewMetricFamilies(rule.Name, newM.Label, rate))
 				}
 			}
 		}

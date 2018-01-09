@@ -86,44 +86,6 @@ func TestGetPrometheusUrl(t *testing.T) {
 	assert.Equal(t, "http://localhost:5556/support/metrics", url5)
 }
 
-func TestConvertDimensionsToHash(t *testing.T) {
-	metricDimensions1 := DimensionList{}
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key2", Value: "value2"})
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key1", Value: "value1"})
-	dimensions1Hash := convertDimensionsToHash(metricDimensions1)
-
-	metricDimensions2 := DimensionList{}
-	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key1", Value: "value1"})
-	metricDimensions2 = append(metricDimensions2, Dimension{Key: "key2", Value: "value2"})
-	dimensions2Hash := convertDimensionsToHash(metricDimensions2)
-	assert.NotEqual(t, dimensions1Hash, dimensions2Hash)
-}
-
-func TestSortDimensionsByKeys(t *testing.T) {
-	metricDimensions1 := DimensionList{}
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key2", Value: "value2"})
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "a", Value: "b"})
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "key1", Value: "value1"})
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "path", Value: "pathValue"})
-	metricDimensions1 = append(metricDimensions1, Dimension{Key: "1", Value: "2"})
-
-	sortedMetricDimensions1 := sortDimensionsByKeys(metricDimensions1)
-
-	expectedResult1 := DimensionList{}
-	expectedResult1 = append(expectedResult1, Dimension{Key: "1", Value: "2"})
-	expectedResult1 = append(expectedResult1, Dimension{Key: "a", Value: "b"})
-	expectedResult1 = append(expectedResult1, Dimension{Key: "key1", Value: "value1"})
-	expectedResult1 = append(expectedResult1, Dimension{Key: "key2", Value: "value2"})
-	expectedResult1 = append(expectedResult1, Dimension{Key: "path", Value: "pathValue"})
-	assert.Equal(t, expectedResult1, sortedMetricDimensions1)
-
-	// test empty dimension list
-	metricDimensions2 := DimensionList{}
-	sortedMetricDimensions2 := sortDimensionsByKeys(metricDimensions2)
-	expectedResult2 := DimensionList{}
-	assert.Equal(t, expectedResult2, sortedMetricDimensions2)
-}
-
 func TestSplitRules(t *testing.T) {
 	var rules = `
 - metricName: request_time_count_ratio
@@ -163,51 +125,61 @@ func TestSplitRules(t *testing.T) {
 	assert.Equal(t, expectedRules, ruleStruct)
 }
 
-func TestRemoveDuplicates(t *testing.T) {
-	elements := []string{"metric1", "metric2", "name1", "name2", "metric1", "metric2", "name1", "name2"}
-	dedupElements := removeDuplicates(elements)
-	expectedElements := []string{"metric1", "metric2", "name1", "name2"}
-	assert.Equal(t, expectedElements, dedupElements)
-}
-
-func TestConvertDimensionsToString(t *testing.T) {
-	dimension1 := Dimension{Key: "key1", Value: "value1"}
-	dimension2 := Dimension{Key: "key2", Value: "value2"}
-	dimensionList := DimensionList{dimension1, dimension2}
-	dimensionString := dimensionsToString(dimensionList)
-	assert.Equal(t, "{key1=value1,key2=value2}", dimensionString)
-}
-
-func TestStructNewStringRate(t *testing.T) {
-	newMetricDimension := DimensionList{}
-	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_rate", Value: "2.0", Dimensions: newMetricDimension}
-	rateValue := 1.0
-	rateRuleParam := map[string]string{}
-	rateRuleParam["name"] = "request_count"
-	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
-	stringRate := structNewMetricString(newPrometheusMetric, rateValue, rateRule)
-	assert.Equal(t,
-		"# HELP rateRuleTestName\n# TYPE gauge\nrateRuleTestName 1.000000e+00\n",
-		stringRate)
-}
-
-func TestStructNewStringAvg(t *testing.T) {
-	newMetricDimension := DimensionList{}
-	newPrometheusMetric := PrometheusMetric{Name: "test_calculate_avg", Value: "2.0", Dimensions: newMetricDimension}
-	avgValue := 1.0
-	avgRuleParam := map[string]string{}
-	avgRuleParam["name"] = "request_count"
-	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
-	stringAvg := structNewMetricString(newPrometheusMetric, avgValue, avgRule)
-	assert.Equal(t,
-		"# HELP avgRuleTestName\n# TYPE gauge\navgRuleTestName 1.000000e+00\n",
-		stringAvg)
-}
-
 func TestFindDenominatorValue(t *testing.T) {
+	prometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 30
+request_count{method="POST",path="/rest/support"} 20
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.9
+request_total_time{method="POST",path="/rest/support"} 1.2
+`
+	labelPairs1 := []*dto.LabelPair{
+		{Name: proto.String("method"), Value: proto.String("GET")},
+		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
+	}
+	labelPairs2 := []*dto.LabelPair{
+		{Name: proto.String("method"), Value: proto.String("POST")},
+		{Name: proto.String("path"), Value: proto.String("/rest/support")},
+	}
+	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
+	for _, metricFamily := range metricFamilies {
+		for _, m := range metricFamily.Metric {
+			newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(metricFamilies, m.Label, "request_total_time")
+			if checkEqualLabels(m.Label, labelPairs1) {
+				assert.Equal(t, "value:0.9 ", newDenominatorValueString)
+				assert.Equal(t, 0.9, newDenominatorValueFloat)
+			}
+			if checkEqualLabels(m.Label, labelPairs2) {
+				assert.Equal(t, "value:1.2 ", newDenominatorValueString)
+				assert.Equal(t, 1.2, newDenominatorValueFloat)
+			}
+		}
+	}
+
 }
 
-func TestFindDenominatorValueFailed(t *testing.T) {
+func TestFindDenominatorValueMisMatchLabels(t *testing.T) {
+	prometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics/1"} 30
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics/1"} 0.9
+`
+	labelPairs := []*dto.LabelPair{
+		{Name: proto.String("method"), Value: proto.String("GET")},
+		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
+	}
+	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
+	newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(metricFamilies, labelPairs, "request_total_time")
+	assert.Equal(t, "", newDenominatorValueString)
+	assert.Equal(t, 0.0, newDenominatorValueFloat)
 }
 
 func TestParserTextToMetricFamilies(t *testing.T) {
@@ -216,7 +188,8 @@ func TestParserTextToMetricFamilies(t *testing.T) {
 # TYPE request_count counter
 request_count{method="GET",path="/rest/metrics"} 25
 `
-	result, _ := parsePrometheusMetricsToMetricFamilies(text)
+	result, err := parsePrometheusMetricsToMetricFamilies(text)
+	assert.Equal(t, nil, err)
 	expectLabelPairs := []*dto.LabelPair{
 		{Name: proto.String("method"), Value: proto.String("GET")},
 		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
@@ -247,7 +220,8 @@ request_count{method="GET",path="/rest/metrics"} 25
 http_requests_total{method="post",code="200"} 1027 1395066363000
 http_requests_total{method="post",code="400"}    3 1395066363000
 `
-	results, _ := parsePrometheusMetricsToMetricFamilies(text)
+	results, err := parsePrometheusMetricsToMetricFamilies(text)
+	assert.Equal(t, nil, err)
 	newResults := []*dto.MetricFamily{}
 	for _, r := range results {
 		if *r.Name != "request_count" {
@@ -255,10 +229,7 @@ http_requests_total{method="post",code="400"}    3 1395066363000
 		} else {
 			for _, requestCountMetric := range r.Metric {
 				requestCountLabels := requestCountMetric.Label
-				for _, newRate := range createNewMetricFamilies("request_count_rate", requestCountLabels, 0.25) {
-					newResults = append(newResults, newRate)
-				}
-
+				newResults = append(newResults, createNewMetricFamilies("request_count_rate", requestCountLabels, 0.25))
 			}
 		}
 	}
@@ -288,20 +259,8 @@ http_request_duration_seconds_bucket{le="+Inf"} 144320
 http_request_duration_seconds_sum 53423
 http_request_duration_seconds_count 144320
 `
-	//	newPrometheusMetricsString := `
-	//	# A histogram, which has a pretty complex representation in the text format:
-	//# HELP http_request_duration_seconds A histogram of the request duration.
-	//# TYPE http_request_duration_seconds histogram
-	//http_request_duration_seconds_bucket{le="0.05"} 25000
-	//http_request_duration_seconds_bucket{le="0.1"} 34000
-	//http_request_duration_seconds_bucket{le="0.2"} 101000
-	//http_request_duration_seconds_bucket{le="0.5"} 130000
-	//http_request_duration_seconds_bucket{le="1"} 135000
-	//http_request_duration_seconds_bucket{le="+Inf"} 149000
-	//http_request_duration_seconds_sum 60000
-	//http_request_duration_seconds_count 149000
-	//`
-	histogramMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(histogramMetricsString)
+	histogramMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(histogramMetricsString)
+	assert.Equal(t, nil, err)
 	convertedHistogramMetricFamilies := convertHistogramToGauge(histogramMetricFamilies[0])
 	convertHistogramToGaugeString := convertMetricFamiliesIntoTextString(convertedHistogramMetricFamilies)
 	expectedString := `# HELP http_request_duration_seconds_bucket A histogram of the request duration.

@@ -27,9 +27,7 @@ func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics
 					}
 					avg := (newValueFloat + oldValueFloat) / 2.0
 					// store avg metric into a new metric family
-					for _, newAvg := range createNewMetricFamilies(rule.Name, newM.Label, avg) {
-						newAvgMetric = append(newAvgMetric, newAvg)
-					}
+					newAvgMetric = append(newAvgMetric, createNewMetricFamilies(rule.Name, newM.Label, avg))
 				}
 			}
 		}

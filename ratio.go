@@ -27,9 +27,7 @@ func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*
 				}
 				ratio := numeratorValueFloat / denominatorValueFloat
 				// store ratio metric into a new metric family
-				for _, newRatio := range createNewMetricFamilies(rule.Name, metric.Label, ratio) {
-					newRatioMetric = append(newRatioMetric, newRatio)
-				}
+				newRatioMetric = append(newRatioMetric, createNewMetricFamilies(rule.Name, metric.Label, ratio))
 			}
 		}
 	}

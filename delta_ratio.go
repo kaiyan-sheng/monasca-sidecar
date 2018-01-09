@@ -45,9 +45,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 					// calculate ratio
 					deltaRatioValue := deltaNumeratorValue / deltaDenominatorValue
 					// store delta ratio metric into a new metric family
-					for _, newDeltaRatio := range createNewMetricFamilies(rule.Name, newM.Label, deltaRatioValue) {
-						newDeltaRatioMetric = append(newDeltaRatioMetric, newDeltaRatio)
-					}
+					newDeltaRatioMetric = append(newDeltaRatioMetric, createNewMetricFamilies(rule.Name, newM.Label, deltaRatioValue))
 				}
 			}
 		}

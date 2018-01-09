@@ -23,8 +23,10 @@ request_total_time{method="POST",path="/rest/support"} 0.7
 # TYPE request_count counter
 request_count{method="GET",path="/rest/metrics"} 30
 `
-	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
-	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errOldMF)
+	assert.Equal(t, nil, errNewMF)
 	for _, newMF := range newMetricFamilies {
 		for _, newMetric := range newMF.Metric {
 			oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldMetricFamilies, newMetric, *newMF.Name, *newMF.Type)
@@ -55,8 +57,11 @@ request_count{method="POST",path="/rest/support"} 20
 request_total_time{method="GET",path="/rest/metrics"} 0.9
 request_total_time{method="POST",path="/rest/support"} 1.0
 `
-	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
-	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errNewMF)
+	assert.Equal(t, nil, errOldMF)
+
 	// define queryInterval and rateRule
 	queryInterval := 10.0
 	rateRuleParam := map[string]string{}
@@ -90,8 +95,11 @@ request_count{method="POST",path="/rest/support/1"} 10
 request_count{method="GET",path="/rest/metrics/2"} 30
 request_count{method="POST",path="/rest/support/2"} 20
 `
-	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
-	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errNewMF)
+	assert.Equal(t, nil, errOldMF)
+
 	// define queryInterval and rateRule
 	queryInterval := 10.0
 	rateRuleParam := map[string]string{}
@@ -128,8 +136,11 @@ http_request_duration_seconds_bucket{le="+Inf"} 149320
 http_request_duration_seconds_sum 63423
 http_request_duration_seconds_count 149320
 `
-	oldMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
-	newMetricFamilies, _ := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errNewMF)
+	assert.Equal(t, nil, errOldMF)
+
 	// define queryInterval and rateRule
 	queryInterval := 10.0
 	rateRuleParam := map[string]string{}
