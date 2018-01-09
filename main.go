@@ -91,10 +91,7 @@ func main() {
 	fmt.Println("*************")
 	fmt.Println(rules)
 	fmt.Println("*************")
-
 	sidecarRules := parseYamlSidecarRules(rules)
-	// get all metric names from sidecar rules into metricNameArray
-	// metricNameArray := getMetricNamesFromRules(sidecarRules)
 
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
 	if queryInterval <= 0.0 || err != nil {
@@ -104,6 +101,7 @@ func main() {
 
 	// get prometheus url and prometheus metric response body
 	oldPrometheusMetrics := getPrometheusMetrics(annotations)
+	oldRateMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
@@ -119,10 +117,6 @@ func main() {
 
 		// get a new set of prometheus metrics
 		newPrometheusMetrics := getPrometheusMetrics(annotations)
-		fmt.Println("******** NEW *******")
-		for _, mf := range newPrometheusMetrics {
-			fmt.Println(mf)
-		}
 
 		// calculate by each sidecar rule
 		for _, rule := range sidecarRules {
@@ -140,13 +134,13 @@ func main() {
 				newRatioMetricStringTotal += newRatioMetricString
 			}
 		}
-		fmt.Println(newRateMetricStringTotal)
+		fmt.Println("newRateMetricStringTotal = ", newRateMetricStringTotal)
 		fmt.Println("********************")
-		fmt.Println(newAvgMetricStringTotal)
+		fmt.Println("newAvgMetricStringTotal = ", newAvgMetricStringTotal)
 		fmt.Println("********************")
-		fmt.Println(newRatioMetricStringTotal)
+		fmt.Println("newRatioMetricStringTotal = ", newRatioMetricStringTotal)
 		fmt.Println("********************")
-
+		oldRateMetricString = newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + convertMetricFamiliesIntoTextString(newPrometheusMetrics)
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
 	}
