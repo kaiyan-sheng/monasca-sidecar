@@ -186,8 +186,8 @@ func responseBodyToStructure(respBody string, metricName string, prometheusMetri
 					dim := Dimension{Key: split_each_dim[0], Value: split_each_dim[1]}
 					metricDimensions = append(metricDimensions, dim)
 				}
-				// sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
-				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(metricDimensions)}
+				sortedMetricDimensions := sortDimensionsByKeys(metricDimensions)
+				pm := PrometheusMetric{Name: iMetricName, Value: metricValue, Dimensions: metricDimensions, DimensionHash: convertDimensionsToHash(sortedMetricDimensions)}
 				prometheusMetrics = append(prometheusMetrics, pm)
 			} else {
 				iMetricName := metricSplit[0]

@@ -64,19 +64,11 @@ func convertDimensionsToHash(dimensions []Dimension) []byte {
 	return dimensionHash
 }
 
-func sortDimensionsByKeys(dimensions map[string]string) map[string]string {
-	sortedDimensions := map[string]string{}
-	// get the list of keys and sort them
-	keys := []string{}
-	for key := range dimensions {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, val := range keys {
-		sortedDimensions[val] = dimensions[val]
-	}
-	return sortedDimensions
+func sortDimensionsByKeys(dimensions DimensionList) DimensionList {
+	sort.SliceStable(dimensions[:], func(i, j int) bool {
+		return dimensions[i].Key < dimensions[j].Key
+	})
+	return dimensions
 }
 
 func parseYamlSidecarRules(rules string) []SidecarRule {
