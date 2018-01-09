@@ -2,7 +2,8 @@
 A push-pull metric forwarder bridging Monasca and Prometheus.
 
 ## Usage
-1. Add metric list, query interval and listen port to calculate rate. 
+
+### Add metric list, query interval and listen port to calculate rate.
 Under annotations in helm/templates/deployment.yaml, add:
 
 ```
@@ -30,8 +31,8 @@ sidecar/rules: |
 
 ```
 
-2. Add sidecar container into deployment.yaml and expose pod name and namespace from environment variables. 
-In helm/templates/deployment.yaml, add:
+### Add sidecar container into deployment.yaml and expose pod name and namespace from environment variables.
+In helm/templates/deployment.yaml
 
 ```
       - name: {{ template "name" . }}-sidecar-container
@@ -55,8 +56,8 @@ In helm/templates/deployment.yaml, add:
           value: {{ .Values.sidecar_container.log_level | quote }}
 ```
 
-3. Add image information, resource and etc for sidecar container. 
-In values.yaml, add:
+### Add image information, resource and etc for sidecar container.
+In values.yaml
 
 ```
 sidecar_container:
@@ -76,25 +77,25 @@ sidecar_container:
 
 ## Support Functions
 
-1. ratio
+### ratio
 
 ```
 ratio = numerator / denominator
 ```
 
-2. deltaRatio
+### deltaRatio
 
 ```
 deltaRatio = (numeratorNew - numeratorOld) / (denominatorNew - denominatorOld)
 ```
 
-3. avg
+### avg
 
 ```
 avg = (metricValueNew + metricValueOld) / 2
 ```
 
-4. rate
+### rate
 
 ```
 rate = (metricValueNew - metricValueOld) / queryInterval
