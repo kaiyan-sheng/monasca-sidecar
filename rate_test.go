@@ -198,3 +198,32 @@ rateRuleTestHistogramName 500
 `
 	assert.Equal(t, expectedResultCount, rateMetricStringCount)
 }
+
+func TestCalculateRateWithResettingCounters(t *testing.T) {
+	oldPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+`
+	newPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 5
+`
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errNewMF)
+	assert.Equal(t, nil, errOldMF)
+
+	// define queryInterval and rateRule
+	queryInterval := 10.0
+	rateRuleParam := map[string]string{}
+	rateRuleParam["name"] = "request_count"
+	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
+
+	// (30 - 25) / 10.0 = 0.5
+	// (20 - 10) / 10.0 = 1.0
+	rateMetricFamilies := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRule)
+	rateMetricString := convertMetricFamiliesIntoTextString(rateMetricFamilies)
+	assert.Equal(t, "", rateMetricString)
+}

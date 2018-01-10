@@ -26,6 +26,12 @@ func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetric
 						continue
 					}
 					rate := (newValueFloat - oldValueFloat) / queryInterval
+					if newMType == dto.MetricType_COUNTER {
+						if rate < 0 {
+							log.Warnf("Counter %v has been reset", newMName)
+							continue
+						}
+					}
 					// store rate metric into a new metric family
 					newRateMetric = append(newRateMetric, createNewMetricFamilies(rule.Name, newM.Label, rate))
 				}

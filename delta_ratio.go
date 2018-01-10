@@ -27,6 +27,12 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						continue
 					}
 					deltaNumeratorValue := newNumeratorValueFloat - oldNumeratorValueFloat
+					if newMType == dto.MetricType_COUNTER {
+						if deltaNumeratorValue < 0 {
+							log.Warnf("Counter %v has been reset", rule.Parameters["numerator"])
+							continue
+						}
+					}
 
 					// get new denominator value
 					newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(newPrometheusMetricsWithNoHistogram, newM.Label, rule.Parameters["denominator"])
@@ -41,7 +47,12 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						continue
 					}
 					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
-
+					if newMType == dto.MetricType_COUNTER {
+						if deltaDenominatorValue < 0 {
+							log.Warnf("Counter %v has been reset", rule.Parameters["denominator"])
+							continue
+						}
+					}
 					// calculate ratio
 					deltaRatioValue := deltaNumeratorValue / deltaDenominatorValue
 					// store delta ratio metric into a new metric family

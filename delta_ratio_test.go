@@ -252,3 +252,38 @@ deltaRatioRuleTestName{method="GET",path="/rest/metrics"} NaN
 `
 	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
 }
+
+func TestCalculateDeltaRatioWithResettingCounters(t *testing.T) {
+	oldPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 25
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.5
+`
+	newPrometheusMetricsString := `
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics"} 5
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics"} 0.1
+`
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.Equal(t, nil, errOldMF)
+	assert.Equal(t, nil, errNewMF)
+
+	// define deltaRatioRule
+	deltaRatioRuleParam := map[string]string{}
+	deltaRatioRuleParam["numerator"] = "request_total_time"
+	deltaRatioRuleParam["denominator"] = "request_count"
+	deltaRatioRule := SidecarRule{Name: "deltaRatioRuleTestName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
+
+	// test resetting counters
+	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
+
+	assert.Equal(t, "", deltaRatioMetricString)
+}
