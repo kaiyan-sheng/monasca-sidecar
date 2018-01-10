@@ -246,7 +246,7 @@ http_requests_total{method="post",code="400"} 3 1395066363000
 	assert.Equal(t, expectedNewString, newResultsString)
 }
 
-func TestCalculateRateWithHistogram(t *testing.T) {
+func TestConvertHistogramToGauge(t *testing.T) {
 	histogramMetricsString := `# A histogram, which has a pretty complex representation in the text format:
 # HELP http_request_duration_seconds A histogram of the request duration.
 # TYPE http_request_duration_seconds histogram
@@ -279,4 +279,105 @@ http_request_duration_seconds_count 144320
 http_request_duration_seconds_sum 53423
 `
 	assert.Equal(t, expectedString, convertHistogramToGaugeString)
+}
+
+func TestConvertSummaryToGauge(t *testing.T) {
+	summaryMetricsString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds summary
+go_gc_duration_seconds{quantile="0"} 4.8738e-05
+go_gc_duration_seconds{quantile="0.25"} 9.3497e-05
+go_gc_duration_seconds{quantile="0.5"} 0.000374365
+go_gc_duration_seconds{quantile="0.75"} 0.008759014
+go_gc_duration_seconds{quantile="1"} 0.187098416
+go_gc_duration_seconds_sum 1.289634876
+go_gc_duration_seconds_count 49
+`
+	summaryMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(summaryMetricsString)
+	assert.Equal(t, nil, err)
+	convertedSummaryMetricFamilies := convertSummaryToGauge(summaryMetricFamilies[0])
+	convertSummaryToGaugeString := convertMetricFamiliesIntoTextString(convertedSummaryMetricFamilies)
+	expectedString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds gauge
+go_gc_duration_seconds{quantile="0"} 4.8738e-05
+go_gc_duration_seconds{quantile="0.25"} 9.3497e-05
+go_gc_duration_seconds{quantile="0.5"} 0.000374365
+go_gc_duration_seconds{quantile="0.75"} 0.008759014
+go_gc_duration_seconds{quantile="1"} 0.187098416
+# HELP go_gc_duration_seconds_count A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds_count gauge
+go_gc_duration_seconds_count 49
+# HELP go_gc_duration_seconds_sum A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds_sum gauge
+go_gc_duration_seconds_sum 1.289634876
+`
+	assert.Equal(t, expectedString, convertSummaryToGaugeString)
+}
+
+func TestReplaceHistogramSummaryToGauge(t *testing.T) {
+	prometheusMetricsString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds summary
+go_gc_duration_seconds{quantile="0"} 4.8738e-05
+go_gc_duration_seconds{quantile="0.25"} 9.3497e-05
+go_gc_duration_seconds{quantile="0.5"} 0.000374365
+go_gc_duration_seconds{quantile="0.75"} 0.008759014
+go_gc_duration_seconds{quantile="1"} 0.187098416
+go_gc_duration_seconds_sum 1.289634876
+go_gc_duration_seconds_count 49
+# A histogram, which has a pretty complex representation in the text format:
+# HELP http_request_duration_seconds A histogram of the request duration.
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{le="0.05"} 24054
+http_request_duration_seconds_bucket{le="0.1"} 33444
+http_request_duration_seconds_bucket{le="0.2"} 100392
+http_request_duration_seconds_bucket{le="0.5"} 129389
+http_request_duration_seconds_bucket{le="1"} 133988
+http_request_duration_seconds_bucket{le="+Inf"} 144320
+http_request_duration_seconds_sum 53423
+http_request_duration_seconds_count 144320
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics/1"} 30
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics/1"} 0.9
+`
+	prometheusMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.Equal(t, nil, err)
+	replacedMetricFamilies := replaceHistogramSummaryToGauge(prometheusMetricFamilies)
+	replacedMetricFamiliesString := convertMetricFamiliesIntoTextString(replacedMetricFamilies)
+	expectedString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds gauge
+go_gc_duration_seconds{quantile="0"} 4.8738e-05
+go_gc_duration_seconds{quantile="0.25"} 9.3497e-05
+go_gc_duration_seconds{quantile="0.5"} 0.000374365
+go_gc_duration_seconds{quantile="0.75"} 0.008759014
+go_gc_duration_seconds{quantile="1"} 0.187098416
+# HELP go_gc_duration_seconds_count A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds_count gauge
+go_gc_duration_seconds_count 49
+# HELP go_gc_duration_seconds_sum A summary of the GC invocation durations.
+# TYPE go_gc_duration_seconds_sum gauge
+go_gc_duration_seconds_sum 1.289634876
+# HELP http_request_duration_seconds_bucket A histogram of the request duration.
+# TYPE http_request_duration_seconds_bucket gauge
+http_request_duration_seconds_bucket{le="+Inf"} 144320
+http_request_duration_seconds_bucket{le="0.05"} 24054
+http_request_duration_seconds_bucket{le="0.1"} 33444
+http_request_duration_seconds_bucket{le="0.2"} 100392
+http_request_duration_seconds_bucket{le="0.5"} 129389
+http_request_duration_seconds_bucket{le="1"} 133988
+# HELP http_request_duration_seconds_count A histogram of the request duration.
+# TYPE http_request_duration_seconds_count gauge
+http_request_duration_seconds_count 144320
+# HELP http_request_duration_seconds_sum A histogram of the request duration.
+# TYPE http_request_duration_seconds_sum gauge
+http_request_duration_seconds_sum 53423
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/metrics/1"} 30
+# HELP request_total_time Total time in second requests take by method and path
+# TYPE request_total_time counter
+request_total_time{method="GET",path="/rest/metrics/1"} 0.9
+`
+	assert.Equal(t, expectedString, replacedMetricFamiliesString)
 }

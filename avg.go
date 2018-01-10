@@ -9,15 +9,13 @@ import (
 
 func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
 	newAvgMetric := []*dto.MetricFamily{}
-	newPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(newPrometheusMetrics)
-	oldPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(oldPrometheusMetrics)
 	// find old value and new value
-	for _, pm := range newPrometheusMetricsWithNoHistogram {
+	for _, pm := range newPrometheusMetrics {
 		newMName := *pm.Name
 		newMType := *pm.Type
 		if *pm.Name == rule.Parameters["name"] {
 			for _, newM := range pm.Metric {
-				oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldPrometheusMetricsWithNoHistogram, newM, newMName, newMType)
+				oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, newMName, newMType)
 				if oldValueString != "" {
 					// calculate avg
 					newValueString, newValueFloat := getValueBasedOnType(newMType, *newM)

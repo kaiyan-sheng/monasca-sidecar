@@ -36,15 +36,13 @@ func main() {
 	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
-		podNamespace = "ms"
-		// os.Exit(1)
+		os.Exit(1)
 	}
 
 	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
 	if !ok {
 		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
-		// os.Exit(1)
-		podName = "ms-api-api-3497288618-lh272"
+		os.Exit(1)
 	}
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
 	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
@@ -74,9 +72,8 @@ func main() {
 	if rules == "" {
 		log.Fatalf("sidecar/rules can not be empty")
 	}
-	fmt.Println("*************")
-	fmt.Println(rules)
-	fmt.Println("*************")
+	log.Infof("rules = %s\n", rules)
+
 	sidecarRules := parseYamlSidecarRules(rules)
 
 	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
@@ -106,36 +103,30 @@ func main() {
 		// get a new set of prometheus metrics
 		newPrometheusMetrics := getPrometheusMetrics(annotations)
 
+		newPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(newPrometheusMetrics)
+		oldPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(oldPrometheusMetrics)
 		// calculate by each sidecar rule
 		for _, rule := range sidecarRules {
 			switch rule.Function {
 			case "rate":
-				newRateMetrics := calculateRate(newPrometheusMetrics, oldPrometheusMetrics, queryInterval, rule)
+				newRateMetrics := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rule)
 				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
 				newRateMetricStringTotal += newRateMetricString
 			case "avg":
-				newAvgMetrics := calculateAvg(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				newAvgMetrics := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
 				newAvgMetricString := convertMetricFamiliesIntoTextString(newAvgMetrics)
 				newAvgMetricStringTotal += newAvgMetricString
 			case "ratio":
-				newRatioMetrics := calculateRatio(newPrometheusMetrics, rule)
+				newRatioMetrics := calculateRatio(newPrometheusMetricsWithNoHistogramSummary, rule)
 				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
 				newRatioMetricStringTotal += newRatioMetricString
 			case "deltaRatio":
-				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetrics, oldPrometheusMetrics, rule)
+				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
 				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
 				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
 			}
 		}
-		fmt.Println("********************")
-		fmt.Println("newRateMetricStringTotal = ", newRateMetricStringTotal)
-		fmt.Println("********************")
-		fmt.Println("newAvgMetricStringTotal = ", newAvgMetricStringTotal)
-		fmt.Println("********************")
-		fmt.Println("newRatioMetricStringTotal = ", newRatioMetricStringTotal)
-		fmt.Println("********************")
-		fmt.Println("newDeltaRatioMetricStringTotal = ", newDeltaRatioMetricStringTotal)
-		fmt.Println("********************")
+
 		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics

@@ -173,8 +173,7 @@ func findOldValueWithMetricFamily(oldPrometheusMetrics []*dto.MetricFamily, newM
 			continue
 		}
 		for _, oldM := range oldMetric.Metric {
-			result := checkEqualLabels(oldM.Label, newM.Label)
-			if result {
+			if checkEqualLabels(oldM.Label, newM.Label) {
 				oldMetricValueString, oldMetricValueFloat := getValueBasedOnType(*oldMetric.Type, *oldM)
 				return oldMetricValueString, oldMetricValueFloat
 			}
@@ -230,7 +229,7 @@ func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair
 	return newMetricFamilies[0]
 }
 
-func replaceHistogramToGauge(prometheusMetrics []*dto.MetricFamily) []*dto.MetricFamily {
+func replaceHistogramSummaryToGauge(prometheusMetrics []*dto.MetricFamily) []*dto.MetricFamily {
 	replacedMetricFamilies := []*dto.MetricFamily{}
 	for _, pm := range prometheusMetrics {
 		if *pm.Type == dto.MetricType_HISTOGRAM {
@@ -238,9 +237,61 @@ func replaceHistogramToGauge(prometheusMetrics []*dto.MetricFamily) []*dto.Metri
 			for _, newGauge := range newConvertHistogramToGaugeMetrics {
 				replacedMetricFamilies = append(replacedMetricFamilies, newGauge)
 			}
+		} else if *pm.Type == dto.MetricType_SUMMARY {
+			newConvertSummaryToGaugeMetrics := convertSummaryToGauge(pm)
+			for _, newGauge := range newConvertSummaryToGaugeMetrics {
+				replacedMetricFamilies = append(replacedMetricFamilies, newGauge)
+			}
 		} else {
 			replacedMetricFamilies = append(replacedMetricFamilies, pm)
 		}
 	}
 	return replacedMetricFamilies
+}
+
+func convertSummaryToGauge(summaryMetricFamilies *dto.MetricFamily) []*dto.MetricFamily {
+	reg := prometheus.NewRegistry()
+	summaryQuantileMetric := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: *summaryMetricFamilies.Name,
+			Help: *summaryMetricFamilies.Help,
+		},
+		[]string{
+			"quantile",
+		},
+	)
+	summarySumMetric := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: *summaryMetricFamilies.Name + "_sum",
+			Help: *summaryMetricFamilies.Help,
+		},
+	)
+	summaryCountMetric := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: *summaryMetricFamilies.Name + "_count",
+			Help: *summaryMetricFamilies.Help,
+		},
+	)
+	reg.MustRegister(summaryQuantileMetric)
+	reg.MustRegister(summarySumMetric)
+	reg.MustRegister(summaryCountMetric)
+	for _, summaryMetric := range summaryMetricFamilies.Metric {
+		summarySumValue := float64(*summaryMetric.Summary.SampleSum)
+		summarySumMetric.Set(summarySumValue)
+		summaryCountValue := float64(*summaryMetric.Summary.SampleCount)
+		summaryCountMetric.Set(summaryCountValue)
+		summaryQuantiles := summaryMetric.Summary.Quantile
+		for _, hQuantile := range summaryQuantiles {
+			summaryValue := float64(*hQuantile.Value)
+			labelValue := strconv.FormatFloat(*hQuantile.Quantile, 'f', -1, 64)
+			summaryQuantileMetric.WithLabelValues(labelValue).Set(summaryValue)
+		}
+	}
+
+	convertedSummaryMetricFamilies, err := reg.Gather()
+	if err != nil {
+		panic("unexpected behavior of custom test registry")
+	}
+
+	return convertedSummaryMetricFamilies
 }

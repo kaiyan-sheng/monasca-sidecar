@@ -9,9 +9,7 @@ import (
 
 func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
 	newRatioMetric := []*dto.MetricFamily{}
-	prometheusMetricsWithNoHistogram := replaceHistogramToGauge(prometheusMetrics)
-
-	for _, pm := range prometheusMetricsWithNoHistogram {
+	for _, pm := range prometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
 			// get denominator value
 			for _, metric := range pm.Metric {
@@ -20,7 +18,7 @@ func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*
 					log.Errorf("Error getting numerator value from prometheus metric: %v", *pm.Name)
 					continue
 				}
-				denominatorValueString, denominatorValueFloat := findDenominatorValue(prometheusMetricsWithNoHistogram, metric.Label, rule.Parameters["denominator"])
+				denominatorValueString, denominatorValueFloat := findDenominatorValue(prometheusMetrics, metric.Label, rule.Parameters["denominator"])
 				if denominatorValueString == "" && denominatorValueFloat == 0.0 {
 					log.Errorf("Error getting denominator value from prometheus metric: %v", *pm.Name)
 					continue

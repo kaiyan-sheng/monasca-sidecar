@@ -10,15 +10,13 @@ import (
 func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
 	// deltaRatio = (newNumeratorValue - oldNumeratorValue) / (newDenominatorValue - oldDenominatorValue)
 	newDeltaRatioMetric := []*dto.MetricFamily{}
-	newPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(newPrometheusMetrics)
-	oldPrometheusMetricsWithNoHistogram := replaceHistogramToGauge(oldPrometheusMetrics)
 	// find old value and new value
-	for _, pm := range newPrometheusMetricsWithNoHistogram {
+	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
 			newMName := *pm.Name
 			newMType := *pm.Type
 			for _, newM := range pm.Metric {
-				oldNumeratorValueString, oldNumeratorValueFloat := findOldValueWithMetricFamily(oldPrometheusMetricsWithNoHistogram, newM, newMName, newMType)
+				oldNumeratorValueString, oldNumeratorValueFloat := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, newMName, newMType)
 				if oldNumeratorValueString != "" {
 					// calculate deltaNumeratorValue
 					newNumeratorValueString, newNumeratorValueFloat := getValueBasedOnType(newMType, *newM)
@@ -35,13 +33,13 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 					}
 
 					// get new denominator value
-					newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(newPrometheusMetricsWithNoHistogram, newM.Label, rule.Parameters["denominator"])
+					newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(newPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
 					if newDenominatorValueString == "" {
 						log.Errorf("Error getting new denominator value from new prometheus metric: %v", newMName)
 						continue
 					}
 					// get old denominator value
-					oldDenominatorValueString, oldDenominatorValueFloat := findDenominatorValue(oldPrometheusMetricsWithNoHistogram, newM.Label, rule.Parameters["denominator"])
+					oldDenominatorValueString, oldDenominatorValueFloat := findDenominatorValue(oldPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
 					if oldDenominatorValueString == "" {
 						log.Errorf("Error getting old denominator value from old prometheus metric: %v", newMName)
 						continue
