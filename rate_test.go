@@ -25,13 +25,14 @@ request_count{method="GET",path="/rest/metrics"} 30
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
+
 	for _, newMF := range newMetricFamilies {
 		for _, newMetric := range newMF.Metric {
-			oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldMetricFamilies, newMetric, *newMF.Name, *newMF.Type)
-			assert.Equal(t, oldValueString, "value:25 ")
+			oldValueFloat, succeedOld := findOldValueWithMetricFamily(oldMetricFamilies, newMetric, *newMF.Name, *newMF.Type)
 			assert.Equal(t, oldValueFloat, 25.0)
+			assert.True(t, succeedOld)
 		}
 	}
 }
@@ -59,8 +60,8 @@ request_total_time{method="POST",path="/rest/support"} 1.0
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errNewMF)
-	assert.Equal(t, nil, errOldMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define queryInterval and rateRule
 	queryInterval := 10.0
@@ -97,8 +98,8 @@ request_count{method="POST",path="/rest/support/2"} 20
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errNewMF)
-	assert.Equal(t, nil, errOldMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define queryInterval and rateRule
 	queryInterval := 10.0
@@ -107,8 +108,7 @@ request_count{method="POST",path="/rest/support/2"} 20
 	rateRule := SidecarRule{Name: "rateRuleTestName", Function: "rate", Parameters: rateRuleParam}
 
 	rateMetricFamilies := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRule)
-	rateMetricString := convertMetricFamiliesIntoTextString(rateMetricFamilies)
-	assert.Equal(t, "", rateMetricString)
+	assert.Equal(t, 0, len(rateMetricFamilies))
 }
 
 func TestFindOldValueWithHistogramRate(t *testing.T) {
@@ -138,8 +138,10 @@ http_request_duration_seconds_count 149320
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errNewMF)
-	assert.Equal(t, nil, errOldMF)
+	newPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(newMetricFamilies)
+	oldPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(oldMetricFamilies)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define queryInterval and rateRule
 	queryInterval := 10.0
@@ -148,7 +150,7 @@ http_request_duration_seconds_count 149320
 	rateRuleParam["name"] = "http_request_duration_seconds_bucket"
 	rateRuleBucket := SidecarRule{Name: "rateRuleTestHistogramName", Function: "rate", Parameters: rateRuleParam}
 
-	rateMetricFamiliesBucket := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRuleBucket)
+	rateMetricFamiliesBucket := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rateRuleBucket)
 	rateMetricStringBucket := convertMetricFamiliesIntoTextString(rateMetricFamiliesBucket)
 
 	expectedResultBucket := `# HELP rateRuleTestHistogramName rateRuleTestHistogramName
@@ -176,7 +178,7 @@ rateRuleTestHistogramName{le="1"} 200
 	rateRuleParam["name"] = "http_request_duration_seconds_sum"
 	rateRuleSum := SidecarRule{Name: "rateRuleTestHistogramName", Function: "rate", Parameters: rateRuleParam}
 
-	rateMetricFamiliesSum := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRuleSum)
+	rateMetricFamiliesSum := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rateRuleSum)
 	rateMetricStringSum := convertMetricFamiliesIntoTextString(rateMetricFamiliesSum)
 
 	expectedResultSum := `# HELP rateRuleTestHistogramName rateRuleTestHistogramName
@@ -189,7 +191,7 @@ rateRuleTestHistogramName 1000
 	rateRuleParam["name"] = "http_request_duration_seconds_count"
 	rateRuleCount := SidecarRule{Name: "rateRuleTestHistogramName", Function: "rate", Parameters: rateRuleParam}
 
-	rateMetricFamiliesCount := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRuleCount)
+	rateMetricFamiliesCount := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rateRuleCount)
 	rateMetricStringCount := convertMetricFamiliesIntoTextString(rateMetricFamiliesCount)
 
 	expectedResultCount := `# HELP rateRuleTestHistogramName rateRuleTestHistogramName
@@ -212,8 +214,8 @@ request_count{method="GET",path="/rest/metrics"} 5
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errNewMF)
-	assert.Equal(t, nil, errOldMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define queryInterval and rateRule
 	queryInterval := 10.0
@@ -224,6 +226,5 @@ request_count{method="GET",path="/rest/metrics"} 5
 	// (30 - 25) / 10.0 = 0.5
 	// (20 - 10) / 10.0 = 1.0
 	rateMetricFamilies := calculateRate(newMetricFamilies, oldMetricFamilies, queryInterval, rateRule)
-	rateMetricString := convertMetricFamiliesIntoTextString(rateMetricFamilies)
-	assert.Equal(t, "", rateMetricString)
+	assert.Equal(t, 0, len(rateMetricFamilies))
 }

@@ -64,18 +64,18 @@ func parseYamlSidecarRules(rules string) []SidecarRule {
 	return ruleStruct
 }
 
-func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels []*dto.LabelPair, denominatorName string) (string, float64) {
+func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels []*dto.LabelPair, denominatorName string) (float64, bool) {
 	for _, pm := range prometheusMetrics {
 		if *pm.Name == denominatorName {
 			for _, metric := range pm.Metric {
 				if checkEqualLabels(numeratorLabels, metric.Label) {
-					denominatorValueString, denominatorValueFloat := getValueBasedOnType(*pm.Type, *metric)
-					return denominatorValueString, denominatorValueFloat
+					denominatorValueFloat, succeedDenominator := getValueBasedOnType(*pm.Type, *metric)
+					return denominatorValueFloat, succeedDenominator
 				}
 			}
 		}
 	}
-	return "", 0.0
+	return 0.0, false
 }
 
 func checkEqualLabels(a, b []*dto.LabelPair) bool {
@@ -167,37 +167,37 @@ func convertHistogramToGauge(histogramMetricFamilies *dto.MetricFamily) []*dto.M
 	return convertedHistogramMetricFamilies
 }
 
-func findOldValueWithMetricFamily(oldPrometheusMetrics []*dto.MetricFamily, newM *dto.Metric, newMName string, newMType dto.MetricType) (string, float64) {
+func findOldValueWithMetricFamily(oldPrometheusMetrics []*dto.MetricFamily, newM *dto.Metric, newMName string, newMType dto.MetricType) (float64, bool) {
 	for _, oldMetric := range oldPrometheusMetrics {
 		if newMName != *oldMetric.Name || newMType != *oldMetric.Type {
 			continue
 		}
 		for _, oldM := range oldMetric.Metric {
 			if checkEqualLabels(oldM.Label, newM.Label) {
-				oldMetricValueString, oldMetricValueFloat := getValueBasedOnType(*oldMetric.Type, *oldM)
-				return oldMetricValueString, oldMetricValueFloat
+				oldMetricValueFloat, succeed := getValueBasedOnType(*oldMetric.Type, *oldM)
+				return oldMetricValueFloat, succeed
 			}
 		}
 	}
-	return "", 0.0
+	return 0.0, false
 }
 
-func getValueBasedOnType(metricType dto.MetricType, metric dto.Metric) (string, float64) {
+func getValueBasedOnType(metricType dto.MetricType, metric dto.Metric) (float64, bool) {
 	switch metricType {
 	case dto.MetricType_COUNTER:
-		return metric.Counter.String(), *metric.Counter.Value
+		return *metric.Counter.Value, true
 	case dto.MetricType_GAUGE:
-		return metric.Gauge.String(), *metric.Gauge.Value
+		return *metric.Gauge.Value, true
 	case dto.MetricType_HISTOGRAM:
-		log.Errorf("This metric should already been converted to Gague: metric.Histogram.String() = ", metric.Histogram.String())
-		return "", 0.0
+		log.Errorf("This metric should already been converted to Gauge: metric.Histogram.String() = ", metric.Histogram.String())
+		return 0.0, false
 	case dto.MetricType_SUMMARY:
-		return "", 0.0
+		log.Errorf("This metric should already been converted to Gauge: metric.Summary.String() = ", metric.Summary.String())
+		return 0.0, false
 	case dto.MetricType_UNTYPED:
-		return metric.Untyped.String(), *metric.Untyped.Value
+		return *metric.Untyped.Value, true
 	}
-
-	return "", 0.0
+	return 0.0, false
 }
 
 func getLabels(metricLabels []*dto.LabelPair) ([]string, map[string]string) {

@@ -145,16 +145,16 @@ request_total_time{method="POST",path="/rest/support"} 1.2
 		{Name: proto.String("path"), Value: proto.String("/rest/support")},
 	}
 	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	for _, metricFamily := range metricFamilies {
 		for _, m := range metricFamily.Metric {
-			newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(metricFamilies, m.Label, "request_total_time")
+			newDenominatorValueFloat, succeedNewDenominator := findDenominatorValue(metricFamilies, m.Label, "request_total_time")
 			if checkEqualLabels(m.Label, labelPairs1) {
-				assert.Equal(t, "value:0.9 ", newDenominatorValueString)
+				assert.True(t, succeedNewDenominator)
 				assert.Equal(t, 0.9, newDenominatorValueFloat)
 			}
 			if checkEqualLabels(m.Label, labelPairs2) {
-				assert.Equal(t, "value:1.2 ", newDenominatorValueString)
+				assert.True(t, succeedNewDenominator)
 				assert.Equal(t, 1.2, newDenominatorValueFloat)
 			}
 		}
@@ -176,9 +176,9 @@ request_total_time{method="GET",path="/rest/metrics/1"} 0.9
 		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
 	}
 	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
-	newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(metricFamilies, labelPairs, "request_total_time")
-	assert.Equal(t, "", newDenominatorValueString)
+	assert.NoError(t, err)
+	newDenominatorValueFloat, succeedNewDenominator := findDenominatorValue(metricFamilies, labelPairs, "request_total_time")
+	assert.False(t, succeedNewDenominator)
 	assert.Equal(t, 0.0, newDenominatorValueFloat)
 }
 
@@ -189,7 +189,7 @@ func TestParserTextToMetricFamilies(t *testing.T) {
 request_count{method="GET",path="/rest/metrics"} 25
 `
 	result, err := parsePrometheusMetricsToMetricFamilies(text)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	expectLabelPairs := []*dto.LabelPair{
 		{Name: proto.String("method"), Value: proto.String("GET")},
 		{Name: proto.String("path"), Value: proto.String("/rest/metrics")},
@@ -221,7 +221,7 @@ http_requests_total{method="post",code="200"} 1027 1395066363000
 http_requests_total{method="post",code="400"}    3 1395066363000
 `
 	results, err := parsePrometheusMetricsToMetricFamilies(text)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	newResults := []*dto.MetricFamily{}
 	for _, r := range results {
 		if *r.Name != "request_count" {
@@ -260,7 +260,7 @@ http_request_duration_seconds_sum 53423
 http_request_duration_seconds_count 144320
 `
 	histogramMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(histogramMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	convertedHistogramMetricFamilies := convertHistogramToGauge(histogramMetricFamilies[0])
 	convertHistogramToGaugeString := convertMetricFamiliesIntoTextString(convertedHistogramMetricFamilies)
 	expectedString := `# HELP http_request_duration_seconds_bucket A histogram of the request duration.
@@ -293,7 +293,7 @@ go_gc_duration_seconds_sum 1.289634876
 go_gc_duration_seconds_count 49
 `
 	summaryMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(summaryMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	convertedSummaryMetricFamilies := convertSummaryToGauge(summaryMetricFamilies[0])
 	convertSummaryToGaugeString := convertMetricFamiliesIntoTextString(convertedSummaryMetricFamilies)
 	expectedString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.
@@ -342,7 +342,7 @@ request_count{method="GET",path="/rest/metrics/1"} 30
 request_total_time{method="GET",path="/rest/metrics/1"} 0.9
 `
 	prometheusMetricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	replacedMetricFamilies := replaceHistogramSummaryToGauge(prometheusMetricFamilies)
 	replacedMetricFamiliesString := convertMetricFamiliesIntoTextString(replacedMetricFamilies)
 	expectedString := `# HELP go_gc_duration_seconds A summary of the GC invocation durations.

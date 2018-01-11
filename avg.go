@@ -11,16 +11,14 @@ func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics
 	newAvgMetric := []*dto.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
-		newMName := *pm.Name
-		newMType := *pm.Type
 		if *pm.Name == rule.Parameters["name"] {
 			for _, newM := range pm.Metric {
-				oldValueString, oldValueFloat := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, newMName, newMType)
-				if oldValueString != "" {
+				oldValueFloat, succeedOld := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, *pm.Name, *pm.Type)
+				if succeedOld {
 					// calculate avg
-					newValueString, newValueFloat := getValueBasedOnType(newMType, *newM)
-					if newValueString == "" {
-						log.Errorf("Error getting values from new prometheus metric: %v", newMName)
+					newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
+					if !succeedNew {
+						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					avg := (newValueFloat + oldValueFloat) / 2.0

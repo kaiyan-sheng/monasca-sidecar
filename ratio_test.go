@@ -19,7 +19,7 @@ request_total_time{method="GET",path="/rest/metrics"} 0.3
 request_total_time{method="POST",path="/rest/support"} 0.5
 `
 	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
@@ -48,7 +48,7 @@ request_count{method="GET",path="/rest/metrics/1"} 25
 request_count{method="POST",path="/rest/support/1"} 10
 `
 	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
 	ratioRuleParam["numerator"] = "request_total_time"
@@ -56,8 +56,7 @@ request_count{method="POST",path="/rest/support/1"} 10
 	ratioRule := SidecarRule{Name: "ratioRuleTestName", Function: "ratio", Parameters: ratioRuleParam}
 
 	ratioMetricFamilies := calculateRatio(metricFamilies, ratioRule)
-	ratioMetricString := convertMetricFamiliesIntoTextString(ratioMetricFamilies)
-	assert.Equal(t, "", ratioMetricString)
+	assert.Equal(t, 0, len(ratioMetricFamilies))
 }
 
 func TestFindOldValueWithHistogramRatio(t *testing.T) {
@@ -74,7 +73,9 @@ http_request_duration_seconds_sum 50000
 http_request_duration_seconds_count 200000
 `
 	metricFamilies, err := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
+	prometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(metricFamilies)
+
 	// define ratioRule
 	// define ratioRule
 	ratioRuleParam := map[string]string{}
@@ -82,7 +83,7 @@ http_request_duration_seconds_count 200000
 	ratioRuleParam["denominator"] = "http_request_duration_seconds_count"
 	ratioRule := SidecarRule{Name: "ratioRuleTestHistogramName", Function: "ratio", Parameters: ratioRuleParam}
 
-	ratioMetricFamiliesBucket := calculateRatio(metricFamilies, ratioRule)
+	ratioMetricFamiliesBucket := calculateRatio(prometheusMetricsWithNoHistogramSummary, ratioRule)
 	ratioMetricStringBucket := convertMetricFamiliesIntoTextString(ratioMetricFamiliesBucket)
 
 	// 50000 / 200000 = 0.25

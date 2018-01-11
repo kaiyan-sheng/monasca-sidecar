@@ -30,8 +30,8 @@ request_total_time{method="POST",path="/rest/support"} 1.2
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -76,8 +76,8 @@ request_total_time{method="POST",path="/rest/support/2"} 1.0
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -87,8 +87,7 @@ request_total_time{method="POST",path="/rest/support/2"} 1.0
 
 	// mismatch dimensions
 	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
-	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
-	assert.Equal(t, "", deltaRatioMetricString)
+	assert.Equal(t, 0, len(deltaRatioMetricFamilies))
 }
 
 func TestFindOldValueWithHistogramDeltaRatio(t *testing.T) {
@@ -118,8 +117,10 @@ http_request_dudeltaRation_seconds_count 149320
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
+	newPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(newMetricFamilies)
+	oldPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(oldMetricFamilies)
 
 	// define deltaRatioRule
 	// define deltaRatioRule
@@ -128,10 +129,10 @@ http_request_dudeltaRation_seconds_count 149320
 	deltaRatioRuleParam["denominator"] = "http_request_dudeltaRation_seconds_sum"
 	deltaRatioRule := SidecarRule{Name: "deltaRatioRuleTestHistogramName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
 
-	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricFamilies := calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, deltaRatioRule)
 	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
 
-	// (149320 - 144320) / (63423 - 53423) =
+	// (149320 - 144320) / (63423 - 53423) = 0.5
 	expectedResult := `# HELP deltaRatioRuleTestHistogramName deltaRatioRuleTestHistogramName
 # TYPE deltaRatioRuleTestHistogramName gauge
 deltaRatioRuleTestHistogramName 0.5
@@ -158,8 +159,8 @@ request_total_time{method="GET",path="/rest/metrics"} 0.6
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -196,8 +197,8 @@ request_total_time{method="GET",path="/rest/metrics"} 0.5
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -234,8 +235,8 @@ request_total_time{method="GET",path="/rest/metrics"} 0.5
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -272,8 +273,8 @@ request_total_time{method="GET",path="/rest/metrics"} 0.1
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define deltaRatioRule
 	deltaRatioRuleParam := map[string]string{}
@@ -283,7 +284,5 @@ request_total_time{method="GET",path="/rest/metrics"} 0.1
 
 	// test resetting counters
 	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
-	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
-
-	assert.Equal(t, "", deltaRatioMetricString)
+	assert.Equal(t, 0, len(deltaRatioMetricFamilies))
 }

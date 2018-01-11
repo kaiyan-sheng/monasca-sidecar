@@ -30,8 +30,8 @@ request_total_time{method="POST",path="/rest/support"} 1.0
 `
 	oldMetricFamilies, errParseOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errParseNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errParseNewMF)
-	assert.Equal(t, nil, errParseOldMF)
+	assert.NoError(t, errParseOldMF)
+	assert.NoError(t, errParseNewMF)
 
 	// define avgRule
 	avgRuleParam := map[string]string{}
@@ -67,8 +67,8 @@ request_count{method="POST",path="/rest/support/2"} 20
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
 
 	// define avgRule
 	avgRuleParam := map[string]string{}
@@ -76,8 +76,7 @@ request_count{method="POST",path="/rest/support/2"} 20
 	avgRule := SidecarRule{Name: "avgRuleTestName", Function: "avg", Parameters: avgRuleParam}
 
 	avgMetricFamilies := calculateAvg(newMetricFamilies, oldMetricFamilies, avgRule)
-	avgMetricString := convertMetricFamiliesIntoTextString(avgMetricFamilies)
-	assert.Equal(t, "", avgMetricString)
+	assert.Equal(t, 0, len(avgMetricFamilies))
 }
 
 func TestFindOldValueWithHistogramAvg(t *testing.T) {
@@ -107,8 +106,10 @@ http_request_duration_seconds_count 149320
 `
 	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
 	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
-	assert.Equal(t, nil, errOldMF)
-	assert.Equal(t, nil, errNewMF)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
+	newPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(newMetricFamilies)
+	oldPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(oldMetricFamilies)
 
 	// define avgRule
 	avgRuleParam := map[string]string{}
@@ -116,7 +117,7 @@ http_request_duration_seconds_count 149320
 	avgRuleParam["name"] = "http_request_duration_seconds_bucket"
 	avgRuleBucket := SidecarRule{Name: "avgRuleTestHistogramName", Function: "avg", Parameters: avgRuleParam}
 
-	avgMetricFamiliesBucket := calculateAvg(newMetricFamilies, oldMetricFamilies, avgRuleBucket)
+	avgMetricFamiliesBucket := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, avgRuleBucket)
 	avgMetricStringBucket := convertMetricFamiliesIntoTextString(avgMetricFamiliesBucket)
 
 	expectedResultBucket := `# HELP avgRuleTestHistogramName avgRuleTestHistogramName
@@ -144,7 +145,7 @@ avgRuleTestHistogramName{le="1"} 134988
 	avgRuleParam["name"] = "http_request_duration_seconds_sum"
 	avgRuleSum := SidecarRule{Name: "avgRuleTestHistogramName", Function: "avg", Parameters: avgRuleParam}
 
-	avgMetricFamiliesSum := calculateAvg(newMetricFamilies, oldMetricFamilies, avgRuleSum)
+	avgMetricFamiliesSum := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, avgRuleSum)
 	avgMetricStringSum := convertMetricFamiliesIntoTextString(avgMetricFamiliesSum)
 
 	expectedResultSum := `# HELP avgRuleTestHistogramName avgRuleTestHistogramName
@@ -157,7 +158,7 @@ avgRuleTestHistogramName 58423
 	avgRuleParam["name"] = "http_request_duration_seconds_count"
 	avgRuleCount := SidecarRule{Name: "avgRuleTestHistogramName", Function: "avg", Parameters: avgRuleParam}
 
-	avgMetricFamiliesCount := calculateAvg(newMetricFamilies, oldMetricFamilies, avgRuleCount)
+	avgMetricFamiliesCount := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, avgRuleCount)
 	avgMetricStringCount := convertMetricFamiliesIntoTextString(avgMetricFamiliesCount)
 
 	expectedResultCount := `# HELP avgRuleTestHistogramName avgRuleTestHistogramName

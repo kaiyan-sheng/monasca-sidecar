@@ -13,13 +13,13 @@ func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*
 		if *pm.Name == rule.Parameters["numerator"] {
 			// get denominator value
 			for _, metric := range pm.Metric {
-				numeratorValueString, numeratorValueFloat := getValueBasedOnType(*pm.Type, *metric)
-				if numeratorValueString == "" {
+				numeratorValueFloat, succeedNumerator := getValueBasedOnType(*pm.Type, *metric)
+				if !succeedNumerator {
 					log.Errorf("Error getting numerator value from prometheus metric: %v", *pm.Name)
 					continue
 				}
-				denominatorValueString, denominatorValueFloat := findDenominatorValue(prometheusMetrics, metric.Label, rule.Parameters["denominator"])
-				if denominatorValueString == "" && denominatorValueFloat == 0.0 {
+				denominatorValueFloat, succeedDenominator := findDenominatorValue(prometheusMetrics, metric.Label, rule.Parameters["denominator"])
+				if !succeedDenominator {
 					log.Errorf("Error getting denominator value from prometheus metric: %v", *pm.Name)
 					continue
 				}

@@ -13,19 +13,17 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
-			newMName := *pm.Name
-			newMType := *pm.Type
 			for _, newM := range pm.Metric {
-				oldNumeratorValueString, oldNumeratorValueFloat := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, newMName, newMType)
-				if oldNumeratorValueString != "" {
+				oldNumeratorValueFloat, succeedOldNumerator := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, *pm.Name, *pm.Type)
+				if succeedOldNumerator {
 					// calculate deltaNumeratorValue
-					newNumeratorValueString, newNumeratorValueFloat := getValueBasedOnType(newMType, *newM)
-					if newNumeratorValueString == "" {
-						log.Errorf("Error getting new numerator value from new prometheus metric: %v", newMName)
+					newNumeratorValueFloat, succeedNewNumerator := getValueBasedOnType(*pm.Type, *newM)
+					if !succeedNewNumerator {
+						log.Errorf("Error getting new numerator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					deltaNumeratorValue := newNumeratorValueFloat - oldNumeratorValueFloat
-					if newMType == dto.MetricType_COUNTER {
+					if *pm.Type == dto.MetricType_COUNTER {
 						if deltaNumeratorValue < 0 {
 							log.Warnf("Counter %v has been reset", rule.Parameters["numerator"])
 							continue
@@ -33,19 +31,19 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 					}
 
 					// get new denominator value
-					newDenominatorValueString, newDenominatorValueFloat := findDenominatorValue(newPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
-					if newDenominatorValueString == "" {
-						log.Errorf("Error getting new denominator value from new prometheus metric: %v", newMName)
+					newDenominatorValueFloat, succeedNewDenominator := findDenominatorValue(newPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
+					if !succeedNewDenominator {
+						log.Errorf("Error getting new denominator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					// get old denominator value
-					oldDenominatorValueString, oldDenominatorValueFloat := findDenominatorValue(oldPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
-					if oldDenominatorValueString == "" {
-						log.Errorf("Error getting old denominator value from old prometheus metric: %v", newMName)
+					oldDenominatorValueFloat, succeedOldDenominator := findDenominatorValue(oldPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
+					if !succeedOldDenominator {
+						log.Errorf("Error getting old denominator value from old prometheus metric: %v", *pm.Name)
 						continue
 					}
 					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
-					if newMType == dto.MetricType_COUNTER {
+					if *pm.Type == dto.MetricType_COUNTER {
 						if deltaDenominatorValue < 0 {
 							log.Warnf("Counter %v has been reset", rule.Parameters["denominator"])
 							continue
