@@ -171,11 +171,7 @@ request_total_time{method="GET",path="/rest/metrics"} 0.6
 	// (0.6 - 0.5) / (25 - 25) = +Inf
 	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
 	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
-	expectedDeltaRatioMetricString := `# HELP deltaRatioRuleTestName deltaRatioRuleTestName
-# TYPE deltaRatioRuleTestName gauge
-deltaRatioRuleTestName{method="GET",path="/rest/metrics"} +Inf
-`
-	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
+	assert.Equal(t, "", deltaRatioMetricString)
 }
 
 func TestCalculateDeltaRatioZero(t *testing.T) {
@@ -247,11 +243,7 @@ request_total_time{method="GET",path="/rest/metrics"} 0.5
 	// (0.5 - 0.5) / (25 - 25) = NaN
 	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
 	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
-	expectedDeltaRatioMetricString := `# HELP deltaRatioRuleTestName deltaRatioRuleTestName
-# TYPE deltaRatioRuleTestName gauge
-deltaRatioRuleTestName{method="GET",path="/rest/metrics"} NaN
-`
-	assert.Equal(t, expectedDeltaRatioMetricString, deltaRatioMetricString)
+	assert.Equal(t, "", deltaRatioMetricString)
 }
 
 func TestCalculateDeltaRatioWithResettingCounters(t *testing.T) {

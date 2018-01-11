@@ -8,7 +8,7 @@ import (
 )
 
 func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, queryInterval float64, rule SidecarRule) []*dto.MetricFamily {
-	newRateMetric := []*dto.MetricFamily{}
+	newRateMetrics := []*dto.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["name"] {
@@ -21,18 +21,17 @@ func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetric
 						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
-					rate := (newValueFloat - oldValueFloat) / queryInterval
-					if *pm.Type == dto.MetricType_COUNTER {
-						if rate < 0 {
-							log.Warnf("Counter %v has been reset", *pm.Name)
-							continue
-						}
+					if *pm.Type == dto.MetricType_COUNTER && newValueFloat < oldValueFloat {
+						log.Warnf("Counter %v has been reset", *pm.Name)
+						continue
 					}
+					rate := (newValueFloat - oldValueFloat) / queryInterval
+
 					// store rate metric into a new metric family
-					newRateMetric = append(newRateMetric, createNewMetricFamilies(rule.Name, newM.Label, rate))
+					newRateMetrics = append(newRateMetrics, createNewMetricFamilies(rule.Name, newM.Label, rate))
 				}
 			}
 		}
 	}
-	return newRateMetric
+	return newRateMetrics
 }

@@ -39,19 +39,30 @@ func stringBetween(value string, a string, b string) string {
 	return value[posFirstAdjusted:posLast]
 }
 
-func getPrometheusUrl(prometheusPort string, prometheusPath string) string {
-	prefix := "http://localhost"
-	if prometheusPath == "/" {
-		prometheusUrl := prefix + ":" + prometheusPort
-		return prometheusUrl
+func getSidecarRulesFromAnnotations(annotations map[string]string) (string, float64, string) {
+	//get sidecar specific input parameters
+	queryIntervalString := annotations["sidecar/query-interval"]
+	if queryIntervalString == "" {
+		log.Fatalf("sidecar/query-interval can not be empty")
 	}
-	if strings.HasSuffix(prometheusPath, "/") {
-		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
-		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
-		return prometheusUrl
+
+	listenPort := annotations["sidecar/listen-port"]
+	if queryIntervalString == "" {
+		log.Fatalf("sidecar/listenPort can not be empty")
 	}
-	prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
-	return prometheusUrl
+
+	queryInterval, errParseFloat := strconv.ParseFloat(queryIntervalString, 64)
+	if queryInterval <= 0.0 || errParseFloat != nil {
+		log.Warnf("Error converting \"sidecar/query-interval\": %v. Set queryInterval to default 30.0 seconds.", errParseFloat)
+		queryInterval = 30.0
+	}
+
+	rules := annotations["sidecar/rules"]
+	if rules == "" {
+		log.Fatalf("sidecar/rules can not be empty")
+	}
+	log.Infof("rules = %s\n", rules)
+	return rules, queryInterval, listenPort
 }
 
 func parseYamlSidecarRules(rules string) []SidecarRule {
@@ -69,8 +80,8 @@ func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels
 		if *pm.Name == denominatorName {
 			for _, metric := range pm.Metric {
 				if checkEqualLabels(numeratorLabels, metric.Label) {
-					denominatorValueFloat, succeedDenominator := getValueBasedOnType(*pm.Type, *metric)
-					return denominatorValueFloat, succeedDenominator
+					denominatorValueFloat, succeedGetDenominator := getValueBasedOnType(*pm.Type, *metric)
+					return denominatorValueFloat, succeedGetDenominator
 				}
 			}
 		}

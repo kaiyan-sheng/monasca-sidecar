@@ -11,8 +11,5 @@
 .glide/
 vendor/
 
-glide.lock
+# module
 main/
-*.iml
-go_module/
-untitled/

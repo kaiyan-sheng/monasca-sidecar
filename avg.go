@@ -8,7 +8,7 @@ import (
 )
 
 func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
-	newAvgMetric := []*dto.MetricFamily{}
+	newAvgMetrics := []*dto.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["name"] {
@@ -21,12 +21,17 @@ func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics
 						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
+					// check if MF is counter type, if it is check if it got reset
+					if *pm.Type == dto.MetricType_COUNTER && newValueFloat < oldValueFloat {
+						log.Warnf("Counter %v has been reset", *pm.Name)
+						continue
+					}
 					avg := (newValueFloat + oldValueFloat) / 2.0
 					// store avg metric into a new metric family
-					newAvgMetric = append(newAvgMetric, createNewMetricFamilies(rule.Name, newM.Label, avg))
+					newAvgMetrics = append(newAvgMetrics, createNewMetricFamilies(rule.Name, newM.Label, avg))
 				}
 			}
 		}
 	}
-	return newAvgMetric
+	return newAvgMetrics
 }

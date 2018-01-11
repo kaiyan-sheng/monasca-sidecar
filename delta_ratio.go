@@ -9,7 +9,7 @@ import (
 
 func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
 	// deltaRatio = (newNumeratorValue - oldNumeratorValue) / (newDenominatorValue - oldDenominatorValue)
-	newDeltaRatioMetric := []*dto.MetricFamily{}
+	newDeltaRatioMetrics := []*dto.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
@@ -22,13 +22,11 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						log.Errorf("Error getting new numerator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
-					deltaNumeratorValue := newNumeratorValueFloat - oldNumeratorValueFloat
-					if *pm.Type == dto.MetricType_COUNTER {
-						if deltaNumeratorValue < 0 {
-							log.Warnf("Counter %v has been reset", rule.Parameters["numerator"])
-							continue
-						}
+					if *pm.Type == dto.MetricType_COUNTER && newNumeratorValueFloat < oldNumeratorValueFloat {
+						log.Warnf("Counter %v has been reset", rule.Parameters["numerator"])
+						continue
 					}
+					deltaNumeratorValue := newNumeratorValueFloat - oldNumeratorValueFloat
 
 					// get new denominator value
 					newDenominatorValueFloat, succeedNewDenominator := findDenominatorValue(newPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
@@ -42,20 +40,23 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						log.Errorf("Error getting old denominator value from old prometheus metric: %v", *pm.Name)
 						continue
 					}
-					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
-					if *pm.Type == dto.MetricType_COUNTER {
-						if deltaDenominatorValue < 0 {
-							log.Warnf("Counter %v has been reset", rule.Parameters["denominator"])
-							continue
-						}
+					if *pm.Type == dto.MetricType_COUNTER && newDenominatorValueFloat < oldDenominatorValueFloat {
+						log.Warnf("Counter %v has been reset", rule.Parameters["denominator"])
+						continue
 					}
+					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
+					if deltaDenominatorValue == 0.0 {
+						log.Warnf("Delta value of denominator from metric %v cannot be zero", *pm.Name)
+						continue
+					}
+
 					// calculate ratio
 					deltaRatioValue := deltaNumeratorValue / deltaDenominatorValue
 					// store delta ratio metric into a new metric family
-					newDeltaRatioMetric = append(newDeltaRatioMetric, createNewMetricFamilies(rule.Name, newM.Label, deltaRatioValue))
+					newDeltaRatioMetrics = append(newDeltaRatioMetrics, createNewMetricFamilies(rule.Name, newM.Label, deltaRatioValue))
 				}
 			}
 		}
 	}
-	return newDeltaRatioMetric
+	return newDeltaRatioMetrics
 }

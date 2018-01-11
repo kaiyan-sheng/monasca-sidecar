@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -21,69 +20,20 @@ import (
 var oldPrometheusMetricString = ``
 
 func main() {
-	val, ok := os.LookupEnv("LOG_LEVEL")
-	logLevelEnv := "info"
-	if ok {
-		logLevelEnv = val
+	// set log level
+	setLogLevel()
+	// get annotations from pod kube config
+	annotations := getPodAnnotations()
+	// get Prometheus url
+	prometheusUrl, succeedFlag := getPrometheusUrl(annotations)
+	if !succeedFlag {
+		log.Fatalf("Errror getting prometheus URL.")
 	}
-	logLevel := strings.ToLower(logLevelEnv)
-	if logLevel != "" {
-		log.Printf("Setting global log level to '%s'", logLevel)
-		log.SetLevelString(logLevel)
-	}
-
-	//get namespace and pod name from environment variables
-	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
-	if !ok {
-		log.Errorf("%s not set\n", "SIDECAR_POD_NAMESPACE")
-		os.Exit(1)
-	}
-
-	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
-	if !ok {
-		log.Errorf("%s not set\n", "SIDECAR_POD_NAME")
-		os.Exit(1)
-	}
-	log.Infof("%s=%s\n", "SIDECAR_POD_NAME", podName)
-	log.Infof("%s=%s\n", "SIDECAR_POD_NAMESPACE", podNamespace)
-
-	//get annotations from pod kube config
-	annotations, errGetAnnotations := getPodAnnotations(podNamespace, podName)
-	if errGetAnnotations != nil {
-		os.Exit(1)
-	}
-	scrape := annotations["prometheus.io/scrape"]
-	if scrape != "true" {
-		log.Fatalf("Scrape prometheus metrics is not enabled. Please enable prometheus.io/scrape in annotations first.")
-	}
-
-	//get sidecar specific input parameters
-	queryIntervalString := annotations["sidecar/query-interval"]
-	if queryIntervalString == "" {
-		log.Fatalf("sidecar/query-interval can not be empty")
-	}
-
-	listenPort := annotations["sidecar/listen-port"]
-	if queryIntervalString == "" {
-		log.Fatalf("sidecar/listenPort can not be empty")
-	}
-
-	rules := annotations["sidecar/rules"]
-	if rules == "" {
-		log.Fatalf("sidecar/rules can not be empty")
-	}
-	log.Infof("rules = %s\n", rules)
-
-	sidecarRules := parseYamlSidecarRules(rules)
-
-	queryInterval, err := strconv.ParseFloat(queryIntervalString, 64)
-	if queryInterval <= 0.0 || err != nil {
-		log.Warnf("Error converting \"sidecar/query-interval\". Set queryInterval to default 30.0 seconds.")
-		queryInterval = 30.0
-	}
-
+	// get rules from annotations
+	sidecarRulesString, queryInterval, listenPort := getSidecarRulesFromAnnotations(annotations)
+	sidecarRules := parseYamlSidecarRules(sidecarRulesString)
 	// get prometheus url and prometheus metric response body
-	oldPrometheusMetrics := getPrometheusMetrics(annotations)
+	oldPrometheusMetrics := getPrometheusMetrics(prometheusUrl)
 	oldPrometheusMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
 
 	// start web server
@@ -101,7 +51,7 @@ func main() {
 		time.Sleep(time.Second * time.Duration(queryInterval))
 
 		// get a new set of prometheus metrics
-		newPrometheusMetrics := getPrometheusMetrics(annotations)
+		newPrometheusMetrics := getPrometheusMetrics(prometheusUrl)
 
 		newPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(newPrometheusMetrics)
 		oldPrometheusMetricsWithNoHistogramSummary := replaceHistogramSummaryToGauge(oldPrometheusMetrics)
@@ -124,6 +74,8 @@ func main() {
 				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
 				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
 				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
+			default:
+				log.Errorf("Rule %v with invalid function %v", rule.Name, rule.Function)
 			}
 		}
 
@@ -133,11 +85,12 @@ func main() {
 	}
 }
 
-func getPrometheusMetrics(annotations map[string]string) []*dto.MetricFamily {
+func getPrometheusUrl(annotations map[string]string) (string, bool) {
 	//get prometheus url
 	prometheusPort := annotations["prometheus.io/port"]
 	if prometheusPort == "" {
-		log.Fatalf("\"prometheus.io/port\" can not be empty.")
+		log.Errorf("\"prometheus.io/port\" can not be empty.")
+		return "", false
 	}
 
 	prometheusPath := annotations["prometheus.io/path"]
@@ -146,8 +99,28 @@ func getPrometheusMetrics(annotations map[string]string) []*dto.MetricFamily {
 		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
 	}
 
-	prometheusUrl := getPrometheusUrl(prometheusPort, prometheusPath)
+	// check annotations
+	scrape := annotations["prometheus.io/scrape"]
+	if scrape != "true" {
+		log.Errorf("Scrape prometheus metrics is not enabled. Please enable prometheus.io/scrape in annotations first.")
+		return "", false
+	}
 
+	prefix := "http://localhost"
+	if prometheusPath == "/" {
+		prometheusUrl := prefix + ":" + prometheusPort
+		return prometheusUrl, true
+	}
+	if strings.HasSuffix(prometheusPath, "/") {
+		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
+		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
+		return prometheusUrl, true
+	}
+	prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
+	return prometheusUrl, true
+}
+
+func getPrometheusMetrics(prometheusUrl string) []*dto.MetricFamily {
 	resp, errGetProm := http.Get(prometheusUrl)
 	if errGetProm != nil {
 		log.Fatalf("Error scraping prometheus endpoint")
@@ -171,7 +144,19 @@ func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, oldPrometheusMetricString) // send data to client side
 }
 
-func getPodAnnotations(namespace string, podName string) (map[string]string, error) {
+func getPodAnnotations() map[string]string {
+	//get namespace and pod name from environment variables
+	podNamespace, ok := os.LookupEnv("SIDECAR_POD_NAMESPACE")
+	if !ok {
+		log.Fatalf("%s not set\n", "SIDECAR_POD_NAMESPACE")
+	}
+
+	podName, ok := os.LookupEnv("SIDECAR_POD_NAME")
+	if !ok {
+		log.Fatalf("%s not set\n", "SIDECAR_POD_NAME")
+	}
+
+	// get annotations
 	annotations := map[string]string{}
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -184,14 +169,27 @@ func getPodAnnotations(namespace string, podName string) (map[string]string, err
 		log.Fatalf("Failed to creates the clientSet")
 	}
 
-	podGet, err := clientSet.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	podGet, err := clientSet.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		log.Errorf("Pod %v not found in namespace %v.", podName, namespace)
+		log.Fatalf("Pod %v not found in namespace %v.", podName, podNamespace)
 	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		log.Errorf("Error getting pod %v in namespace %v: %v", podName, namespace, statusError.ErrStatus.Message)
+		log.Fatalf("Error getting pod %v in namespace %v: %v", podName, podNamespace, statusError.ErrStatus.Message)
 	} else {
-		log.Infof("Found pod %v in namespace %v", podName, namespace)
+		log.Infof("Found pod %v in namespace %v", podName, podNamespace)
 		annotations = podGet.Annotations
 	}
-	return annotations, err
+	return annotations
+}
+
+func setLogLevel() {
+	val, ok := os.LookupEnv("LOG_LEVEL")
+	logLevelEnv := "info"
+	if ok {
+		logLevelEnv = val
+	}
+	logLevel := strings.ToLower(logLevelEnv)
+	if logLevel != "" {
+		log.Printf("Setting global log level to '%s'", logLevel)
+		log.SetLevelString(logLevel)
+	}
 }

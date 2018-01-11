@@ -8,7 +8,7 @@ import (
 )
 
 func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
-	newRatioMetric := []*dto.MetricFamily{}
+	newRatioMetrics := []*dto.MetricFamily{}
 	for _, pm := range prometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
 			// get denominator value
@@ -23,12 +23,16 @@ func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*
 					log.Errorf("Error getting denominator value from prometheus metric: %v", *pm.Name)
 					continue
 				}
+				if denominatorValueFloat == 0.0 {
+					log.Warnf("Denominator value from metric %v cannot be zero", *pm.Name)
+					continue
+				}
 				ratio := numeratorValueFloat / denominatorValueFloat
 				// store ratio metric into a new metric family
-				newRatioMetric = append(newRatioMetric, createNewMetricFamilies(rule.Name, metric.Label, ratio))
+				newRatioMetrics = append(newRatioMetrics, createNewMetricFamilies(rule.Name, metric.Label, ratio))
 			}
 		}
 	}
 	log.Infof("Successfully calculated ratio for rule ", rule.Name)
-	return newRatioMetric
+	return newRatioMetrics
 }
