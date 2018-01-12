@@ -46,7 +46,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*prometheusClient.MetricFamily, 
 					}
 					deltaDenominatorValue := newDenominatorValueFloat - oldDenominatorValueFloat
 					if deltaDenominatorValue == 0.0 {
-						log.Warnf("Delta value of denominator from metric %v cannot be zero", *pm.Name)
+						log.Infof("Delta value of denominator from metric %v with labels %v cannot be zero", *pm.Name, newM.Label)
 						continue
 					}
 

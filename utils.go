@@ -19,7 +19,7 @@ type SidecarRule struct {
 	Parameters map[string]string `yaml:"parameters"`
 }
 
-func getSidecarRulesFromAnnotations(annotations map[string]string) (string, float64, string) {
+func getSidecarRulesFromAnnotations(annotations map[string]string) (string, float64, string, string) {
 	//get sidecar specific input parameters
 	queryIntervalString := annotations["sidecar/query-interval"]
 	if queryIntervalString == "" {
@@ -30,10 +30,13 @@ func getSidecarRulesFromAnnotations(annotations map[string]string) (string, floa
 	if queryIntervalString == "" {
 		log.Fatalf("prometheus.io/port can not be empty")
 	}
-	prometheusPath := annotations["prometheus.io/path"]
-	if prometheusPath == "" {
-		prometheusPath = "/metrics"
-		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
+	listenPath := annotations["prometheus.io/path"]
+	if listenPath == "" {
+		listenPath = "/metrics"
+		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\".")
+	}
+	if string(listenPath[0]) != "/" {
+		listenPath = "/" + listenPath
 	}
 
 	queryInterval, errParseFloat := strconv.ParseFloat(queryIntervalString, 64)
@@ -41,14 +44,13 @@ func getSidecarRulesFromAnnotations(annotations map[string]string) (string, floa
 		log.Warnf("Error converting \"sidecar/query-interval\": %v. Set queryInterval to default 30.0 seconds.", errParseFloat)
 		queryInterval = 30.0
 	}
-	listenPortPath := listenPort + prometheusPath
 
 	rules := annotations["sidecar/rules"]
 	if rules == "" {
 		log.Fatalf("sidecar/rules can not be empty")
 	}
 	log.Infof("rules = %s\n", rules)
-	return rules, queryInterval, listenPortPath
+	return rules, queryInterval, listenPort, listenPath
 }
 
 func parseYamlSidecarRules(rules string) []SidecarRule {

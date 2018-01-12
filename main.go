@@ -32,8 +32,8 @@ func main() {
 		log.Fatalf("Errror getting prometheus URL.")
 	}
 	// get rules from annotations
-	sidecarRulesString, queryInterval, listenPortPath := getSidecarRulesFromAnnotations(annotations)
-	log.Infof("Sidecar pushes new prometheus metric to %v", listenPortPath)
+	sidecarRulesString, queryInterval, listenPort, listenPath := getSidecarRulesFromAnnotations(annotations)
+	log.Infof("Sidecar pushes new prometheus metric to %v", listenPort+listenPath)
 
 	sidecarRules := parseYamlSidecarRules(sidecarRulesString)
 	// get prometheus url and prometheus metric response body
@@ -41,8 +41,10 @@ func main() {
 	oldPrometheusMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
 
 	// start web server
-	http.HandleFunc("/", pushPrometheusMetricsString) // set router
-	go http.ListenAndServe(":"+listenPortPath, nil)   // set listen port
+	http.HandleFunc(listenPath, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, oldPrometheusMetricString) // send data to client side
+	})
+	go http.ListenAndServe(":"+listenPort, nil) // set listen port
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
@@ -82,7 +84,6 @@ func main() {
 				log.Errorf("Rule %v with invalid function %v", rule.Name, rule.Function)
 			}
 		}
-
 		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
@@ -142,10 +143,6 @@ func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily
 		log.Fatalf("Error parsing prometheus metrics to metric families")
 	}
 	return result
-}
-
-func pushPrometheusMetricsString(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, oldPrometheusMetricString) // send data to client side
 }
 
 func getPodAnnotations() map[string]string {
