@@ -20,11 +20,13 @@ func TestParseFloat(t *testing.T) {
 	assert.NoError(t, err2)
 
 	string3 := "not a float"
-	_, err3 := strconv.ParseFloat(string3, 64)
+	float3, err3 := strconv.ParseFloat(string3, 64)
+	assert.Equal(t, 0.0, float3)
 	assert.Error(t, err3)
 
 	string4 := "0"
-	_, err4 := strconv.ParseFloat(string4, 64)
+	float4, err4 := strconv.ParseFloat(string4, 64)
+	assert.Equal(t, 0.0, float4)
 	assert.NoError(t, err4)
 
 	string5 := "-30"
@@ -33,7 +35,7 @@ func TestParseFloat(t *testing.T) {
 	assert.NoError(t, err5)
 }
 
-func TestGetSidecarRulesFromAnnotations(t *testing.T) {
+func TestGetPrometheusUrlFromAnnotations(t *testing.T) {
 	annotations1 := map[string]string{}
 	annotations1["prometheus.io/port"] = "9999"
 	annotations1["prometheus.io/path"] = "/support/metrics"
@@ -42,7 +44,7 @@ func TestGetSidecarRulesFromAnnotations(t *testing.T) {
 	annotations1["sidecar/listen-port"] = "5556"
 	annotations1["sidecar/rules"] = ""
 	prometheusUrl1, flag1 := getPrometheusUrl(annotations1)
-	assert.Equal(t, true, flag1)
+	assert.True(t, flag1)
 	assert.Equal(t, "http://localhost:5556/support/metrics", prometheusUrl1)
 
 	// use default prometheus.io/path
@@ -53,10 +55,10 @@ func TestGetSidecarRulesFromAnnotations(t *testing.T) {
 	annotations2["sidecar/listen-port"] = "5556"
 	annotations2["sidecar/rules"] = ""
 	prometheusUrl2, flag2 := getPrometheusUrl(annotations2)
-	assert.Equal(t, true, flag2)
+	assert.True(t, flag2)
 	assert.Equal(t, "http://localhost:5556/metrics", prometheusUrl2)
 
-	// use default prometheus.io/path
+	// missing scrape=true
 	annotations3 := map[string]string{}
 	annotations3["prometheus.io/port"] = "9999"
 	annotations3["prometheus.io/path"] = "/support/metrics"
@@ -64,6 +66,6 @@ func TestGetSidecarRulesFromAnnotations(t *testing.T) {
 	annotations3["sidecar/listen-port"] = "5556"
 	annotations3["sidecar/rules"] = ""
 	prometheusUrl3, flag3 := getPrometheusUrl(annotations3)
-	assert.Equal(t, false, flag3)
+	assert.False(t, flag3)
 	assert.Equal(t, "", prometheusUrl3)
 }

@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-var oldPrometheusMetricString = ``
-
 func main() {
 	// set log level
 	setLogLevel()
@@ -26,19 +24,19 @@ func main() {
 	annotations := getPodAnnotations()
 	// get Prometheus url
 	prometheusUrl, succeedFlag := getPrometheusUrl(annotations)
-	log.Infof("Sidecar gets prometheus metrics from URL = %v", prometheusUrl)
 
 	if !succeedFlag {
 		log.Fatalf("Errror getting prometheus URL.")
 	}
 	// get rules from annotations
 	sidecarRulesString, queryInterval, listenPort, listenPath := getSidecarRulesFromAnnotations(annotations)
+	log.Infof("Sidecar gets prometheus metrics from URL = %v", prometheusUrl)
 	log.Infof("Sidecar pushes new prometheus metric to %v", listenPort+listenPath)
 
 	sidecarRules := parseYamlSidecarRules(sidecarRulesString)
 	// get prometheus url and prometheus metric response body
 	oldPrometheusMetrics := getPrometheusMetrics(prometheusUrl)
-	oldPrometheusMetricString = convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
+	oldPrometheusMetricString := convertMetricFamiliesIntoTextString(oldPrometheusMetrics)
 
 	// start web server
 	http.HandleFunc(listenPath, func(w http.ResponseWriter, r *http.Request) {
@@ -117,9 +115,7 @@ func getPrometheusUrl(annotations map[string]string) (string, bool) {
 		return prometheusUrl, true
 	}
 	if strings.HasSuffix(prometheusPath, "/") {
-		prometheusPath := prometheusPath[:(len(prometheusPath) - 1)]
-		prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
-		return prometheusUrl, true
+		prometheusPath = prometheusPath[:(len(prometheusPath) - 1)]
 	}
 	prometheusUrl := prefix + ":" + prometheusPort + prometheusPath
 	return prometheusUrl, true

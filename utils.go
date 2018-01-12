@@ -35,7 +35,7 @@ func getSidecarRulesFromAnnotations(annotations map[string]string) (string, floa
 		listenPath = "/metrics"
 		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\".")
 	}
-	if string(listenPath[0]) != "/" {
+	if !strings.HasSuffix(listenPath, "/") {
 		listenPath = "/" + listenPath
 	}
 
