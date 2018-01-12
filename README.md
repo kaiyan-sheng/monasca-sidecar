@@ -1,14 +1,24 @@
 # Monasca Sidecar
-A push-pull metric forwarder bridging Monasca and Prometheus.
+A push-pull metric forwarder bridging Monasca and Prometheus. Monasca-sidecar exists as a side container in the same pod with the target container. It gets the pod name and namespace to read annotations.
 
 ## Usage
 
 ### Add metric list, query interval and listen port to calculate rate.
-Under annotations in helm/templates/deployment.yaml, add:
+Under annotations in helm/templates/deployment.yaml, copy prometheus.io/port value to sidecar/listen-port. This will be the port that sidecar will go scrape prometehus metrics.
+Set a new value for prometheus.io/port and this will be the port that sidecar will push the calculated metrics to as well as the port monasca-agent should scrape.
+
+Note: both sidecar container and monasca-agent will use the same prometheus.io/path. Default for prometheus.io/path is "/metrics".
+
+prometheus.io/path + prometheus.io/port: monasca-agent to scrape and sidecar to push
+
+prometheus.io/path + sidecar/listen-port: sidecar to scrape
 
 ```
+prometheus.io/path: "/support/metrics"
+prometheus.io/port: "9999"
+prometheus.io/scrape: "true"
 sidecar/query-interval: "30"
-sidecar/listen-port: "9999"
+sidecar/listen-port: "5556"
 sidecar/rules: |
   - metricName: request_ratio
     function: ratio

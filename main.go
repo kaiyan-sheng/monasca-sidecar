@@ -26,11 +26,15 @@ func main() {
 	annotations := getPodAnnotations()
 	// get Prometheus url
 	prometheusUrl, succeedFlag := getPrometheusUrl(annotations)
+	log.Infof("Sidecar gets prometheus metrics from URL = %v", prometheusUrl)
+
 	if !succeedFlag {
 		log.Fatalf("Errror getting prometheus URL.")
 	}
 	// get rules from annotations
-	sidecarRulesString, queryInterval, listenPort := getSidecarRulesFromAnnotations(annotations)
+	sidecarRulesString, queryInterval, listenPortPath := getSidecarRulesFromAnnotations(annotations)
+	log.Infof("Sidecar pushes new prometheus metric to %v", listenPortPath)
+
 	sidecarRules := parseYamlSidecarRules(sidecarRulesString)
 	// get prometheus url and prometheus metric response body
 	oldPrometheusMetrics := getPrometheusMetrics(prometheusUrl)
@@ -38,7 +42,7 @@ func main() {
 
 	// start web server
 	http.HandleFunc("/", pushPrometheusMetricsString) // set router
-	go http.ListenAndServe(":"+listenPort, nil)       // set listen port
+	go http.ListenAndServe(":"+listenPortPath, nil)   // set listen port
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
@@ -87,9 +91,9 @@ func main() {
 
 func getPrometheusUrl(annotations map[string]string) (string, bool) {
 	//get prometheus url
-	prometheusPort := annotations["prometheus.io/port"]
+	prometheusPort := annotations["sidecar/listen-port"]
 	if prometheusPort == "" {
-		log.Errorf("\"prometheus.io/port\" can not be empty.")
+		log.Errorf("\"sidecar/listen-port\" can not be empty.")
 		return "", false
 	}
 

@@ -26,9 +26,14 @@ func getSidecarRulesFromAnnotations(annotations map[string]string) (string, floa
 		log.Fatalf("sidecar/query-interval can not be empty")
 	}
 
-	listenPort := annotations["sidecar/listen-port"]
+	listenPort := annotations["prometheus.io/port"]
 	if queryIntervalString == "" {
-		log.Fatalf("sidecar/listenPort can not be empty")
+		log.Fatalf("prometheus.io/port can not be empty")
+	}
+	prometheusPath := annotations["prometheus.io/path"]
+	if prometheusPath == "" {
+		prometheusPath = "/metrics"
+		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
 	}
 
 	queryInterval, errParseFloat := strconv.ParseFloat(queryIntervalString, 64)
@@ -36,13 +41,14 @@ func getSidecarRulesFromAnnotations(annotations map[string]string) (string, floa
 		log.Warnf("Error converting \"sidecar/query-interval\": %v. Set queryInterval to default 30.0 seconds.", errParseFloat)
 		queryInterval = 30.0
 	}
+	listenPortPath := listenPort + prometheusPath
 
 	rules := annotations["sidecar/rules"]
 	if rules == "" {
 		log.Fatalf("sidecar/rules can not be empty")
 	}
 	log.Infof("rules = %s\n", rules)
-	return rules, queryInterval, listenPort
+	return rules, queryInterval, listenPortPath
 }
 
 func parseYamlSidecarRules(rules string) []SidecarRule {

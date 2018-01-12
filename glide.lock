@@ -1,5 +1,5 @@
 hash: 0fff71741c6099d2b05a976479c46497374bd85be446aa4dbfc009ed8753c44d
-updated: 2018-01-11T14:54:42.182805579-07:00
+updated: 2018-01-12T10:29:16.097326427-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -141,14 +141,14 @@ imports:
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/olivere/elastic.v5
-  version: ef745defcdcc081f19c499930dc12c7a6cb638b4
+  version: 0eca603795dd69d8270bba3383358c074044d8fc
   subpackages:
   - config
   - uritemplates
 - name: gopkg.in/yaml.v2
   version: d670f9405373e636a5a2765eea47fac0c9bc91a4
 - name: k8s.io/api
-  version: b9bce47306043e17d4bab456a30f766872e2c6c0
+  version: 17e8c4ddcf485c837950b38d9509bfcadfd0c8e1
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -180,7 +180,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apimachinery
-  version: d86399872a1f1082d33982f7f9b37a2ce7c2e307
+  version: c33db96a31b68b53ce6903caf3ba93571acb0e51
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
@@ -218,7 +218,7 @@ imports:
   - pkg/watch
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: dde6ef6eafb8d5315baebf739933ad7550665943
+  version: b1fb949a8b508e11971a4f708035f167ffb8a3a7
   subpackages:
   - discovery
   - kubernetes
