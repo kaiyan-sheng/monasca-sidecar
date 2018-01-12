@@ -5,7 +5,7 @@ package main
 import (
 	"bytes"
 	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	log "github.hpe.com/kronos/kelog"
 	"gopkg.in/yaml.v2"
@@ -61,7 +61,7 @@ func parseYamlSidecarRules(rules string) []SidecarRule {
 	return ruleStruct
 }
 
-func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels []*dto.LabelPair, denominatorName string) (float64, bool) {
+func findDenominatorValue(prometheusMetrics []*prometheusClient.MetricFamily, numeratorLabels []*prometheusClient.LabelPair, denominatorName string) (float64, bool) {
 	for _, pm := range prometheusMetrics {
 		if *pm.Name == denominatorName {
 			for _, metric := range pm.Metric {
@@ -75,7 +75,7 @@ func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels
 	return 0.0, false
 }
 
-func checkEqualLabels(a, b []*dto.LabelPair) bool {
+func checkEqualLabels(a, b []*prometheusClient.LabelPair) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -95,14 +95,14 @@ func checkEqualLabels(a, b []*dto.LabelPair) bool {
 	return true
 }
 
-func checkEqualLabelsWithoutGe(a, b []*dto.LabelPair) bool {
+func checkEqualLabelsWithoutGe(a, b []*prometheusClient.LabelPair) bool {
 	// ignore ge and le
 	if a == nil && b == nil {
 		return true
 	}
 	if len(a) > len(b) {
 		// remove "ge" label
-		newA := []*dto.LabelPair{}
+		newA := []*prometheusClient.LabelPair{}
 		for _, subA := range a {
 			if *subA.Name != "ge" {
 				newA = append(newA, subA)
@@ -113,20 +113,20 @@ func checkEqualLabelsWithoutGe(a, b []*dto.LabelPair) bool {
 	return checkEqualLabels(a, b)
 }
 
-func parsePrometheusMetricsToMetricFamilies(text string) ([]*dto.MetricFamily, error) {
+func parsePrometheusMetricsToMetricFamilies(text string) ([]*prometheusClient.MetricFamily, error) {
 	var parser expfmt.TextParser
 	parsed, err := parser.TextToMetricFamilies(strings.NewReader(text))
 	if err != nil {
 		return nil, err
 	}
-	var result []*dto.MetricFamily
+	var result []*prometheusClient.MetricFamily
 	for _, mf := range parsed {
 		result = append(result, mf)
 	}
 	return result, nil
 }
 
-func convertMetricFamiliesIntoTextString(newMetricFamilies []*dto.MetricFamily) string {
+func convertMetricFamiliesIntoTextString(newMetricFamilies []*prometheusClient.MetricFamily) string {
 	// convert new metric families into text
 	out := &bytes.Buffer{}
 	for _, newMF := range newMetricFamilies {
@@ -135,7 +135,7 @@ func convertMetricFamiliesIntoTextString(newMetricFamilies []*dto.MetricFamily) 
 	return out.String()
 }
 
-func convertHistogramToGauge(histogramMetricFamilies *dto.MetricFamily) []*dto.MetricFamily {
+func convertHistogramToGauge(histogramMetricFamilies *prometheusClient.MetricFamily) []*prometheusClient.MetricFamily {
 	reg := prometheus.NewRegistry()
 	histogramBucketMetric := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -182,7 +182,7 @@ func convertHistogramToGauge(histogramMetricFamilies *dto.MetricFamily) []*dto.M
 	return convertedHistogramMetricFamilies
 }
 
-func findOldValueWithMetricFamily(oldPrometheusMetrics []*dto.MetricFamily, newM *dto.Metric, newMName string, newMType dto.MetricType) (float64, bool) {
+func findOldValueWithMetricFamily(oldPrometheusMetrics []*prometheusClient.MetricFamily, newM *prometheusClient.Metric, newMName string, newMType prometheusClient.MetricType) (float64, bool) {
 	for _, oldMetric := range oldPrometheusMetrics {
 		if newMName != *oldMetric.Name || newMType != *oldMetric.Type {
 			continue
@@ -197,25 +197,25 @@ func findOldValueWithMetricFamily(oldPrometheusMetrics []*dto.MetricFamily, newM
 	return 0.0, false
 }
 
-func getValueBasedOnType(metricType dto.MetricType, metric dto.Metric) (float64, bool) {
+func getValueBasedOnType(metricType prometheusClient.MetricType, metric prometheusClient.Metric) (float64, bool) {
 	switch metricType {
-	case dto.MetricType_COUNTER:
+	case prometheusClient.MetricType_COUNTER:
 		return *metric.Counter.Value, true
-	case dto.MetricType_GAUGE:
+	case prometheusClient.MetricType_GAUGE:
 		return *metric.Gauge.Value, true
-	case dto.MetricType_HISTOGRAM:
+	case prometheusClient.MetricType_HISTOGRAM:
 		log.Errorf("This metric should already been converted to Gauge: metric.Histogram.String() = ", metric.Histogram.String())
 		return 0.0, false
-	case dto.MetricType_SUMMARY:
+	case prometheusClient.MetricType_SUMMARY:
 		log.Errorf("This metric should already been converted to Gauge: metric.Summary.String() = ", metric.Summary.String())
 		return 0.0, false
-	case dto.MetricType_UNTYPED:
+	case prometheusClient.MetricType_UNTYPED:
 		return *metric.Untyped.Value, true
 	}
 	return 0.0, false
 }
 
-func getLabels(metricLabels []*dto.LabelPair) ([]string, map[string]string) {
+func getLabels(metricLabels []*prometheusClient.LabelPair) ([]string, map[string]string) {
 	labelKeysArray := []string{}
 	labelMap := map[string]string{}
 	for _, label := range metricLabels {
@@ -225,7 +225,7 @@ func getLabels(metricLabels []*dto.LabelPair) ([]string, map[string]string) {
 	return labelKeysArray, labelMap
 }
 
-func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair, newMetricValue float64) *dto.MetricFamily {
+func createNewMetricFamilies(newMetricName string, metricLabels []*prometheusClient.LabelPair, newMetricValue float64) *prometheusClient.MetricFamily {
 	labelKeysArray, labelMap := getLabels(metricLabels)
 	reg := prometheus.NewRegistry()
 	metricFamily := prometheus.NewGaugeVec(
@@ -244,15 +244,15 @@ func createNewMetricFamilies(newMetricName string, metricLabels []*dto.LabelPair
 	return newMetricFamilies[0]
 }
 
-func replaceHistogramSummaryToGauge(prometheusMetrics []*dto.MetricFamily) []*dto.MetricFamily {
-	replacedMetricFamilies := []*dto.MetricFamily{}
+func replaceHistogramSummaryToGauge(prometheusMetrics []*prometheusClient.MetricFamily) []*prometheusClient.MetricFamily {
+	replacedMetricFamilies := []*prometheusClient.MetricFamily{}
 	for _, pm := range prometheusMetrics {
-		if *pm.Type == dto.MetricType_HISTOGRAM {
+		if *pm.Type == prometheusClient.MetricType_HISTOGRAM {
 			newConvertHistogramToGaugeMetrics := convertHistogramToGauge(pm)
 			for _, newGauge := range newConvertHistogramToGaugeMetrics {
 				replacedMetricFamilies = append(replacedMetricFamilies, newGauge)
 			}
-		} else if *pm.Type == dto.MetricType_SUMMARY {
+		} else if *pm.Type == prometheusClient.MetricType_SUMMARY {
 			newConvertSummaryToGaugeMetrics := convertSummaryToGauge(pm)
 			for _, newGauge := range newConvertSummaryToGaugeMetrics {
 				replacedMetricFamilies = append(replacedMetricFamilies, newGauge)
@@ -264,7 +264,7 @@ func replaceHistogramSummaryToGauge(prometheusMetrics []*dto.MetricFamily) []*dt
 	return replacedMetricFamilies
 }
 
-func convertSummaryToGauge(summaryMetricFamilies *dto.MetricFamily) []*dto.MetricFamily {
+func convertSummaryToGauge(summaryMetricFamilies *prometheusClient.MetricFamily) []*prometheusClient.MetricFamily {
 	reg := prometheus.NewRegistry()
 	summaryQuantileMetric := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

@@ -3,12 +3,12 @@
 package main
 
 import (
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, queryInterval float64, rule SidecarRule) []*dto.MetricFamily {
-	newRateMetrics := []*dto.MetricFamily{}
+func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, queryInterval float64, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newRateMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["name"] {
@@ -21,7 +21,7 @@ func calculateRate(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetric
 						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
-					if *pm.Type == dto.MetricType_COUNTER && newValueFloat < oldValueFloat {
+					if *pm.Type == prometheusClient.MetricType_COUNTER && newValueFloat < oldValueFloat {
 						log.Warnf("Counter %v has been reset", *pm.Name)
 						continue
 					}

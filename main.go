@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -124,7 +124,7 @@ func getPrometheusUrl(annotations map[string]string) (string, bool) {
 	return prometheusUrl, true
 }
 
-func getPrometheusMetrics(prometheusUrl string) []*dto.MetricFamily {
+func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily {
 	resp, errGetProm := http.Get(prometheusUrl)
 	if errGetProm != nil {
 		log.Fatalf("Error scraping prometheus endpoint")

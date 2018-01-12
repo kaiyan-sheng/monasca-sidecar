@@ -3,13 +3,13 @@
 package main
 
 import (
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
+func calculateDeltaRatio(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
 	// deltaRatio = (newNumeratorValue - oldNumeratorValue) / (newDenominatorValue - oldDenominatorValue)
-	newDeltaRatioMetrics := []*dto.MetricFamily{}
+	newDeltaRatioMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
@@ -22,7 +22,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						log.Errorf("Error getting new numerator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
-					if *pm.Type == dto.MetricType_COUNTER && newNumeratorValueFloat < oldNumeratorValueFloat {
+					if *pm.Type == prometheusClient.MetricType_COUNTER && newNumeratorValueFloat < oldNumeratorValueFloat {
 						log.Warnf("Counter %v has been reset", rule.Parameters["numerator"])
 						continue
 					}
@@ -40,7 +40,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*dto.MetricFamily, oldPrometheus
 						log.Errorf("Error getting old denominator value from old prometheus metric: %v", *pm.Name)
 						continue
 					}
-					if *pm.Type == dto.MetricType_COUNTER && newDenominatorValueFloat < oldDenominatorValueFloat {
+					if *pm.Type == prometheusClient.MetricType_COUNTER && newDenominatorValueFloat < oldDenominatorValueFloat {
 						log.Warnf("Counter %v has been reset", rule.Parameters["denominator"])
 						continue
 					}

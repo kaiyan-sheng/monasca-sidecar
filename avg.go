@@ -3,12 +3,12 @@
 package main
 
 import (
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
-	newAvgMetrics := []*dto.MetricFamily{}
+func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newAvgMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["name"] {
@@ -22,7 +22,7 @@ func calculateAvg(newPrometheusMetrics []*dto.MetricFamily, oldPrometheusMetrics
 						continue
 					}
 					// check if MF is counter type, if it is check if it got reset
-					if *pm.Type == dto.MetricType_COUNTER && newValueFloat < oldValueFloat {
+					if *pm.Type == prometheusClient.MetricType_COUNTER && newValueFloat < oldValueFloat {
 						log.Warnf("Counter %v has been reset", *pm.Name)
 						continue
 					}

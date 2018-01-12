@@ -3,12 +3,12 @@
 package main
 
 import (
-	dto "github.com/prometheus/client_model/go"
+	prometheusClient "github.com/prometheus/client_model/go"
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateRatio(prometheusMetrics []*dto.MetricFamily, rule SidecarRule) []*dto.MetricFamily {
-	newRatioMetrics := []*dto.MetricFamily{}
+func calculateRatio(prometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newRatioMetrics := []*prometheusClient.MetricFamily{}
 	for _, pm := range prometheusMetrics {
 		if *pm.Name == rule.Parameters["numerator"] {
 			// get denominator value
