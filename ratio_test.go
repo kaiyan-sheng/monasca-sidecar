@@ -93,3 +93,43 @@ ratioRuleTestHistogramName 0.25
 `
 	assert.Equal(t, expectedResultBucket, ratioMetricStringBucket)
 }
+
+func TestRatioWithRequstBucketCount(t *testing.T) {
+	prometheusMetricsString := `# HELP request_bucket_count Histogram count of requests by method, path (seconds), bucket
+# TYPE request_bucket_count counter
+request_bucket_count{ge=".2",method="GET",path="/rest/appliances"} 5
+request_bucket_count{ge=".5",method="GET",path="/rest/appliances"} 1
+request_bucket_count{ge="1",method="GET",path="/rest/appliances"} 1
+request_bucket_count{ge="2.5",method="GET",path="/rest/metrics"} 2
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/appliances"} 7
+request_count{method="GET",path="/rest/metrics"} 2
+`
+	metricFamilies, errMF := parsePrometheusMetricsToMetricFamilies(prometheusMetricsString)
+	assert.NoError(t, errMF)
+
+	// define deltaRatioRule
+	ratioRuleParam := map[string]string{}
+	ratioRuleParam["numerator"] = "request_bucket_count"
+	ratioRuleParam["denominator"] = "request_count"
+	ratioRule := SidecarRule{Name: "requestBucketCountRatioTestName", Function: "ratio", Parameters: ratioRuleParam}
+
+	// delta ratio
+	ratioMetricFamilies := calculateRatio(metricFamilies, ratioRule)
+	ratioMetricFamiliesString := convertMetricFamiliesIntoTextString(ratioMetricFamilies)
+	expectedResult := `# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge=".2",method="GET",path="/rest/appliances"} 0.7142857142857143
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge=".5",method="GET",path="/rest/appliances"} 0.14285714285714285
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge="1",method="GET",path="/rest/appliances"} 0.14285714285714285
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge="2.5",method="GET",path="/rest/metrics"} 1
+`
+	assert.Equal(t, expectedResult, ratioMetricFamiliesString)
+}

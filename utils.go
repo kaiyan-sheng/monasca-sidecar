@@ -19,26 +19,6 @@ type SidecarRule struct {
 	Parameters map[string]string `yaml:"parameters"`
 }
 
-func stringBetween(value string, a string, b string) string {
-	// Get substring between two strings.
-	posFirst := strings.Index(value, a)
-	if posFirst == -1 {
-		log.Warnf("Start chars do not exist in original string")
-		return ""
-	}
-	posLast := strings.Index(value, b)
-	if posLast == -1 {
-		log.Warnf("End chars do not exist in original string")
-		return ""
-	}
-	posFirstAdjusted := posFirst + len(a)
-	if posFirstAdjusted >= posLast {
-		log.Warnf("Start chars is on the right side of end chars")
-		return ""
-	}
-	return value[posFirstAdjusted:posLast]
-}
-
 func getSidecarRulesFromAnnotations(annotations map[string]string) (string, float64, string) {
 	//get sidecar specific input parameters
 	queryIntervalString := annotations["sidecar/query-interval"]
@@ -79,7 +59,7 @@ func findDenominatorValue(prometheusMetrics []*dto.MetricFamily, numeratorLabels
 	for _, pm := range prometheusMetrics {
 		if *pm.Name == denominatorName {
 			for _, metric := range pm.Metric {
-				if checkEqualLabels(numeratorLabels, metric.Label) {
+				if checkEqualLabelsWithoutGe(numeratorLabels, metric.Label) {
 					denominatorValueFloat, succeedGetDenominator := getValueBasedOnType(*pm.Type, *metric)
 					return denominatorValueFloat, succeedGetDenominator
 				}
@@ -107,6 +87,22 @@ func checkEqualLabels(a, b []*dto.LabelPair) bool {
 		}
 	}
 	return true
+}
+
+func checkEqualLabelsWithoutGe(a, b []*dto.LabelPair) bool {
+	// ignore ge and le
+	if a == nil && b == nil {
+		return true
+	}
+
+	// remove "ge" label
+	newA := []*dto.LabelPair{}
+	for _, subA := range a {
+		if *subA.Name != "ge" {
+			newA = append(newA, subA)
+		}
+	}
+	return checkEqualLabels(newA, b)
 }
 
 func parsePrometheusMetricsToMetricFamilies(text string) ([]*dto.MetricFamily, error) {

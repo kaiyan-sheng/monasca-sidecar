@@ -278,3 +278,57 @@ request_total_time{method="GET",path="/rest/metrics"} 0.1
 	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
 	assert.Equal(t, 0, len(deltaRatioMetricFamilies))
 }
+
+func TestDeltaRatioWithRequstBucketCount(t *testing.T) {
+	oldPrometheusMetricsString := `# HELP request_bucket_count Histogram count of requests by method, path (seconds), bucket
+# TYPE request_bucket_count counter
+request_bucket_count{ge=".2",method="GET",path="/rest/appliances"} 5
+request_bucket_count{ge=".5",method="GET",path="/rest/appliances"} 1
+request_bucket_count{ge="1",method="GET",path="/rest/appliances"} 1
+request_bucket_count{ge="2.5",method="GET",path="/rest/metrics"} 2
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/appliances"} 7
+request_count{method="GET",path="/rest/metrics"} 2
+`
+	newPrometheusMetricsString := `# HELP request_bucket_count Histogram count of requests by method, path (seconds), bucket
+# TYPE request_bucket_count counter
+request_bucket_count{ge=".2",method="GET",path="/rest/appliances"} 6
+request_bucket_count{ge=".5",method="GET",path="/rest/appliances"} 3
+request_bucket_count{ge="1",method="GET",path="/rest/appliances"} 1
+request_bucket_count{ge="1",method="GET",path="/rest/metrics"} 1
+request_bucket_count{ge="2.5",method="GET",path="/rest/metrics"} 3
+# HELP request_count Counts requests by method and path
+# TYPE request_count counter
+request_count{method="GET",path="/rest/appliances"} 10
+request_count{method="GET",path="/rest/metrics"} 4
+`
+	oldMetricFamilies, errOldMF := parsePrometheusMetricsToMetricFamilies(oldPrometheusMetricsString)
+	newMetricFamilies, errNewMF := parsePrometheusMetricsToMetricFamilies(newPrometheusMetricsString)
+	assert.NoError(t, errOldMF)
+	assert.NoError(t, errNewMF)
+
+	// define deltaRatioRule
+	deltaRatioRuleParam := map[string]string{}
+	deltaRatioRuleParam["numerator"] = "request_bucket_count"
+	deltaRatioRuleParam["denominator"] = "request_count"
+	deltaRatioRule := SidecarRule{Name: "requestBucketCountRatioTestName", Function: "deltaRatio", Parameters: deltaRatioRuleParam}
+
+	// delta ratio
+	deltaRatioMetricFamilies := calculateDeltaRatio(newMetricFamilies, oldMetricFamilies, deltaRatioRule)
+	deltaRatioMetricString := convertMetricFamiliesIntoTextString(deltaRatioMetricFamilies)
+	expectedResult := `# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge=".2",method="GET",path="/rest/appliances"} 0.3333333333333333
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge=".5",method="GET",path="/rest/appliances"} 0.6666666666666666
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge="1",method="GET",path="/rest/appliances"} 0
+# HELP requestBucketCountRatioTestName requestBucketCountRatioTestName
+# TYPE requestBucketCountRatioTestName gauge
+requestBucketCountRatioTestName{ge="2.5",method="GET",path="/rest/metrics"} 0.5
+`
+	assert.Equal(t, expectedResult, deltaRatioMetricString)
+}
