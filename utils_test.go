@@ -134,14 +134,9 @@ request_count{method="GET",path="/rest/metrics"} 25
 }
 
 func TestConvertMetricFamiliesToText(t *testing.T) {
-	text := `
-# HELP request_count Counts requests by method and path
+	text := `# HELP request_count Counts requests by method and path
 # TYPE request_count counter
 request_count{method="GET",path="/rest/metrics"} 25
-# HELP http_requests_total The total number of HTTP requests.
-# TYPE http_requests_total counter
-http_requests_total{method="post",code="200"} 1027 1395066363000
-http_requests_total{method="post",code="400"}    3 1395066363000
 `
 	results, err := parsePrometheusMetricsToMetricFamilies(text)
 	assert.NoError(t, err)
@@ -161,10 +156,6 @@ http_requests_total{method="post",code="400"}    3 1395066363000
 	expectedNewString := `# HELP request_count_rate request_count_rate
 # TYPE request_count_rate gauge
 request_count_rate{method="GET",path="/rest/metrics"} 0.25
-# HELP http_requests_total The total number of HTTP requests.
-# TYPE http_requests_total counter
-http_requests_total{method="post",code="200"} 1027 1395066363000
-http_requests_total{method="post",code="400"} 3 1395066363000
 `
 	assert.Equal(t, expectedNewString, newResultsString)
 }
