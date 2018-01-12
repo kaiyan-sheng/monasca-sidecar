@@ -1,5 +1,6 @@
 # Monasca Sidecar
 A push-pull metric forwarder bridging Monasca and Prometheus. Monasca-sidecar exists as a side container in the same pod with the target container. It gets the pod name and namespace to read annotations.
+From annotations, monasca-sidecar will get the prometheus endpoint and sidecar rules.
 
 ## Usage
 
