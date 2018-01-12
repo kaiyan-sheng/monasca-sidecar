@@ -94,15 +94,17 @@ func checkEqualLabelsWithoutGe(a, b []*dto.LabelPair) bool {
 	if a == nil && b == nil {
 		return true
 	}
-
-	// remove "ge" label
-	newA := []*dto.LabelPair{}
-	for _, subA := range a {
-		if *subA.Name != "ge" {
-			newA = append(newA, subA)
+	if len(a) > len(b) {
+		// remove "ge" label
+		newA := []*dto.LabelPair{}
+		for _, subA := range a {
+			if *subA.Name != "ge" {
+				newA = append(newA, subA)
+			}
 		}
+		return checkEqualLabels(newA, b)
 	}
-	return checkEqualLabels(newA, b)
+	return checkEqualLabels(a, b)
 }
 
 func parsePrometheusMetricsToMetricFamilies(text string) ([]*dto.MetricFamily, error) {
