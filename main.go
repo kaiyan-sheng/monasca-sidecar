@@ -46,10 +46,11 @@ func main() {
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
-		newRateMetricStringTotal := ``
-		newAvgMetricStringTotal := ``
-		newRatioMetricStringTotal := ``
-		newDeltaRatioMetricStringTotal := ``
+		newRateMetrics := []*prometheusClient.MetricFamily{}
+		newAvgMetrics := []*prometheusClient.MetricFamily{}
+		newRatioMetrics := []*prometheusClient.MetricFamily{}
+		newDeltaRatioMetrics := []*prometheusClient.MetricFamily{}
+		newDeltaMetrics := []*prometheusClient.MetricFamily{}
 
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
@@ -63,26 +64,20 @@ func main() {
 		for _, rule := range sidecarRules {
 			switch rule.Function {
 			case "rate":
-				newRateMetrics := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rule)
-				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
-				newRateMetricStringTotal += newRateMetricString
+				newRateMetrics = append(newRateMetrics, calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rule)...)
 			case "avg":
-				newAvgMetrics := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
-				newAvgMetricString := convertMetricFamiliesIntoTextString(newAvgMetrics)
-				newAvgMetricStringTotal += newAvgMetricString
+				newAvgMetrics = append(newAvgMetrics, calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
 			case "ratio":
-				newRatioMetrics := calculateRatio(newPrometheusMetricsWithNoHistogramSummary, rule)
-				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
-				newRatioMetricStringTotal += newRatioMetricString
+				newRatioMetrics = append(newRatioMetrics, calculateRatio(newPrometheusMetricsWithNoHistogramSummary, rule)...)
 			case "deltaRatio":
-				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
-				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
-				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
+				newDeltaRatioMetrics = append(newDeltaRatioMetrics, calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
+			case "delta":
+				newDeltaMetrics = append(newDeltaMetrics, calculateDelta(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
 			default:
 				log.Errorf("Rule %v with invalid function %v", rule.Name, rule.Function)
 			}
 		}
-		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
+		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + convertMetricFamiliesIntoTextString(newRateMetrics) + convertMetricFamiliesIntoTextString(newAvgMetrics) + convertMetricFamiliesIntoTextString(newRatioMetrics) + convertMetricFamiliesIntoTextString(newDeltaRatioMetrics) + convertMetricFamiliesIntoTextString(newDeltaMetrics)
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
 	}

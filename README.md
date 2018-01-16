@@ -39,7 +39,10 @@ sidecar/rules: |
     function: rate
     parameters:
       name: request_count
-
+  - metricName: request_failure_count_delta
+      function: delta
+      parameters:
+        name: request_failure_count
 ```
 
 ### Add sidecar container into deployment.yaml and expose pod name and namespace from environment variables.
@@ -75,7 +78,7 @@ sidecar_container:
   log_level: warn
   image:
     repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
-    tag: 0.0.0-fafad16aec4039 
+    tag: 0.0.0-6ac7697938efc1
     pullPolicy: Always
   resources:
     requests:
@@ -110,4 +113,10 @@ avg = (metricValueNew + metricValueOld) / 2
 
 ```
 rate = (metricValueNew - metricValueOld) / queryInterval
+```
+
+### delta
+
+```
+delta = metricValueNew - metricValueOld
 ```

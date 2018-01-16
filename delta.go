@@ -1,4 +1,4 @@
-// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
+// (C) Copyright 2018 Hewlett Packard Enterprise Development LP
 
 package main
 
@@ -7,8 +7,8 @@ import (
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, queryInterval float64, rule SidecarRule) []*prometheusClient.MetricFamily {
-	newRateMetrics := []*prometheusClient.MetricFamily{}
+func calculateDelta(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newDeltaMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name != rule.Parameters["name"] {
@@ -17,7 +17,7 @@ func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPro
 		for _, newM := range pm.Metric {
 			oldValueFloat, succeedOld := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, *pm.Name, *pm.Type)
 			if succeedOld {
-				// calculate rate
+				// calculate delta
 				newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
 				if !succeedNew {
 					log.Warnf("Error getting values from new prometheus metric: %v", *pm.Name)
@@ -27,13 +27,13 @@ func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPro
 					log.Warnf("Counter %v has been reset", *pm.Name)
 					continue
 				}
-				rate := (newValueFloat - oldValueFloat) / queryInterval
+				delta := newValueFloat - oldValueFloat
 
-				// store rate metric into a new metric family
-				newRateMetrics = append(newRateMetrics, createNewMetricFamilies(rule.Name, newM.Label, rate))
+				// store delta metric into a new metric family
+				newDeltaMetrics = append(newDeltaMetrics, createNewMetricFamilies(rule.Name, newM.Label, delta))
 			}
 		}
 	}
-	log.Infof("Successfully calculated rate for rule ", rule.Name)
-	return newRateMetrics
+	log.Infof("Successfully calculated delta for rule ", rule.Name)
+	return newDeltaMetrics
 }
