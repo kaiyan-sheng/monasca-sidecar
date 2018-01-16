@@ -5,7 +5,7 @@ From annotations, monasca-sidecar will get the prometheus endpoint and sidecar r
 ## Usage
 
 ### Add metric list, query interval and listen port to calculate rate.
-Under annotations in helm/templates/deployment.yaml, copy prometheus.io/port value to sidecar/listen-port. This will be the port that sidecar will go scrape prometehus metrics.
+Under annotations in helm/templates/deployment.yaml, copy prometheus.io/port value to sidecar/listen-port. This will be the port that sidecar will go scrape prometheus metrics.
 Set a new value for prometheus.io/port and this will be the port that sidecar will push the calculated metrics to as well as the port monasca-agent should scrape.
 
 Note: both sidecar container and monasca-agent will use the same prometheus.io/path. Default for prometheus.io/path is "/metrics".
