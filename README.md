@@ -72,7 +72,7 @@ In values.yaml
 
 ```
 sidecar_container:
-  log_level: info
+  log_level: warn
   image:
     repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
     tag: 0.0.0-fafad16aec4039 
