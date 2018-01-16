@@ -1,4 +1,4 @@
-// (C) Copyright 2017-2018 Hewlett Packard Enterprise Development LP
+// (C) Copyright 2018 Hewlett Packard Enterprise Development LP
 
 package main
 
@@ -7,31 +7,31 @@ import (
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, queryInterval float64, rule SidecarRule) []*prometheusClient.MetricFamily {
-	newRateMetrics := []*prometheusClient.MetricFamily{}
+func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newAvgMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name == rule.Parameters["name"] {
 			for _, newM := range pm.Metric {
 				oldValueFloat, succeedOld := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, *pm.Name, *pm.Type)
 				if succeedOld {
-					// calculate rate
+					// calculate avg
 					newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
 					if !succeedNew {
 						log.Warnf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
+					// check if MF is counter type, if it is check if it got reset
 					if *pm.Type == prometheusClient.MetricType_COUNTER && newValueFloat < oldValueFloat {
 						log.Warnf("Counter %v has been reset", *pm.Name)
 						continue
 					}
-					rate := (newValueFloat - oldValueFloat) / queryInterval
-
-					// store rate metric into a new metric family
-					newRateMetrics = append(newRateMetrics, createNewMetricFamilies(rule.Name, newM.Label, rate))
+					avg := (newValueFloat + oldValueFloat) / 2.0
+					// store avg metric into a new metric family
+					newAvgMetrics = append(newAvgMetrics, createNewMetricFamilies(rule.Name, newM.Label, avg))
 				}
 			}
 		}
 	}
-	return newRateMetrics
+	return newAvgMetrics
 }
