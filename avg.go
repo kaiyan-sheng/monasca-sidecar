@@ -18,7 +18,7 @@ func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldProm
 					// calculate avg
 					newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
 					if !succeedNew {
-						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
+						log.Warnf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					// check if MF is counter type, if it is check if it got reset

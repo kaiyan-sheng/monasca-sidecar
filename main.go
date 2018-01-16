@@ -180,7 +180,7 @@ func getPodAnnotations() map[string]string {
 
 func setLogLevel() {
 	val, ok := os.LookupEnv("LOG_LEVEL")
-	logLevelEnv := "info"
+	logLevelEnv := "warn"
 	if ok {
 		logLevelEnv = val
 	}

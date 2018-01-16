@@ -24,7 +24,7 @@ func calculateRatio(prometheusMetrics []*prometheusClient.MetricFamily, rule Sid
 					continue
 				}
 				if denominatorValueFloat == 0.0 {
-					log.Warnf("Denominator value from metric %v with labels %v cannot be zero", *pm.Name, metric.Label)
+					log.Infof("Denominator value from metric %v with labels %v cannot be zero", *pm.Name, metric.Label)
 					continue
 				}
 				ratio := numeratorValueFloat / denominatorValueFloat

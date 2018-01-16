@@ -18,7 +18,7 @@ func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPro
 					// calculate rate
 					newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
 					if !succeedNew {
-						log.Errorf("Error getting values from new prometheus metric: %v", *pm.Name)
+						log.Warnf("Error getting values from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					if *pm.Type == prometheusClient.MetricType_COUNTER && newValueFloat < oldValueFloat {

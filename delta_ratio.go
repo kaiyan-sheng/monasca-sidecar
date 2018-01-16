@@ -19,7 +19,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*prometheusClient.MetricFamily, 
 					// calculate deltaNumeratorValue
 					newNumeratorValueFloat, succeedNewNumerator := getValueBasedOnType(*pm.Type, *newM)
 					if !succeedNewNumerator {
-						log.Errorf("Error getting new numerator value from new prometheus metric: %v", *pm.Name)
+						log.Warnf("Error getting new numerator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					if *pm.Type == prometheusClient.MetricType_COUNTER && newNumeratorValueFloat < oldNumeratorValueFloat {
@@ -31,13 +31,13 @@ func calculateDeltaRatio(newPrometheusMetrics []*prometheusClient.MetricFamily, 
 					// get new denominator value
 					newDenominatorValueFloat, succeedNewDenominator := findDenominatorValue(newPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
 					if !succeedNewDenominator {
-						log.Errorf("Error getting new denominator value from new prometheus metric: %v", *pm.Name)
+						log.Warnf("Error getting new denominator value from new prometheus metric: %v", *pm.Name)
 						continue
 					}
 					// get old denominator value
 					oldDenominatorValueFloat, succeedOldDenominator := findDenominatorValue(oldPrometheusMetrics, newM.Label, rule.Parameters["denominator"])
 					if !succeedOldDenominator {
-						log.Errorf("Error getting old denominator value from old prometheus metric: %v", *pm.Name)
+						log.Warnf("Error getting old denominator value from old prometheus metric: %v", *pm.Name)
 						continue
 					}
 					if *pm.Type == prometheusClient.MetricType_COUNTER && newDenominatorValueFloat < oldDenominatorValueFloat {
