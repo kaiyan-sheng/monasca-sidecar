@@ -70,8 +70,8 @@ In helm/templates/deployment.yaml
           value: {{ .Values.sidecar_container.log_level | quote }}
         - name: RETRY_COUNT
           value: {{ .Values.sidecar_container.retry_count | quote }}
-        - name: RETRY_COUNT
-          value: {{ .Values.sidecar_container.retry_count | quote }}
+        - name: RETRY_DELAY
+          value: {{ .Values.sidecar_container.retry_delay | quote }}
 ```
 
 ### Add image information, resource and etc for sidecar container.

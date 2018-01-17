@@ -59,6 +59,7 @@ func calculateDeltaRatio(newPrometheusMetrics []*prometheusClient.MetricFamily, 
 			}
 		}
 	}
-	log.Infof("Successfully calculated deltaRatio for rule ", rule.Name)
+	log.Debugf("Successfully calculated deltaRatio for rule ", rule.Name)
+	log.Debugf("Delta ratio metrics = ", convertMetricFamiliesIntoTextString(newDeltaRatioMetrics))
 	return newDeltaRatioMetrics
 }

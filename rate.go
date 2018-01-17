@@ -34,6 +34,7 @@ func calculateRate(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPro
 			}
 		}
 	}
-	log.Infof("Successfully calculated rate for rule ", rule.Name)
+	log.Debugf("Successfully calculated rate for rule ", rule.Name)
+	log.Debugf("Rate metrics = ", convertMetricFamiliesIntoTextString(newRateMetrics))
 	return newRateMetrics
 }

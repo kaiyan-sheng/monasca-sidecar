@@ -34,6 +34,7 @@ func calculateRatio(prometheusMetrics []*prometheusClient.MetricFamily, rule Sid
 			newRatioMetrics = append(newRatioMetrics, createNewMetricFamilies(rule.Name, metric.Label, ratio))
 		}
 	}
-	log.Infof("Successfully calculated ratio for rule ", rule.Name)
+	log.Debugf("Successfully calculated ratio for rule ", rule.Name)
+	log.Debugf("Ratio metrics = ", convertMetricFamiliesIntoTextString(newRatioMetrics))
 	return newRatioMetrics
 }

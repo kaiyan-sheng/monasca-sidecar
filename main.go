@@ -13,9 +13,9 @@ import (
 	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 )
 
 func main() {
@@ -187,21 +187,25 @@ func setLogLevel() {
 	}
 }
 
-func getRetryParams() (int, float64){
+func getRetryParams() (int, float64) {
 	retryCount, okCount := os.LookupEnv("RETRY_COUNT")
 	retryDelay, okDelay := os.LookupEnv("RETRY_DELAY")
 	retryCountEnv := 5
 	retryDelayEnv := 10.0
 	if okCount {
 		retryCountEnvInt, errInt := strconv.Atoi(retryCount)
-		if errInt != nil {
+		if errInt == nil {
 			retryCountEnv = retryCountEnvInt
+		} else {
+			log.Warnf("Error converting RETRY_COUNT to an integer. Set to default RETRY_COUNT=5.")
 		}
 	}
 	if okDelay {
 		retryDelayEnvFloat, errFloat := strconv.ParseFloat(retryDelay, 64)
-		if errFloat != nil {
+		if errFloat == nil {
 			retryDelayEnv = retryDelayEnvFloat
+		} else {
+			log.Warnf("Error converting RETRY_DELAY to an integer. Set to default RETRY_DELAY=5.")
 		}
 	}
 	return retryCountEnv, retryDelayEnv
@@ -215,10 +219,10 @@ func retryGetAnnotations() map[string]string {
 	// get annotations from pod kube config
 	annotations := map[string]string{}
 	for i := 0; i <= retryCount; i++ {
-		annotations = getPodAnnotations()
+		annotations := getPodAnnotations()
 		if _, ok := annotations["sidecar/listen-port"]; ok {
-			log.Infof("Good annotation!")
-			break
+			log.Debugf("Good annotation!")
+			return annotations
 		}
 		log.Infof("Annotation doesn't include all the information that's needed. Sleep %v seconds and retry %v.", retryDelay, i)
 		// sleep for 30 seconds or how long queryInterval is

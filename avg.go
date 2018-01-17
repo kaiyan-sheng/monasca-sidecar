@@ -34,6 +34,7 @@ func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldProm
 			}
 		}
 	}
-	log.Infof("Successfully calculated avg for rule ", rule.Name)
+	log.Debugf("Successfully calculated avg for rule ", rule.Name)
+	log.Debugf("Avg metrics = ", convertMetricFamiliesIntoTextString(newAvgMetrics))
 	return newAvgMetrics
 }
