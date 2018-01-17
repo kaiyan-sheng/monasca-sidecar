@@ -15,13 +15,14 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 )
 
 func main() {
 	// set log level
 	setLogLevel()
-	// get annotations from pod kube config
-	annotations := getPodAnnotations()
+	// retry to get annotations
+	annotations := retryGetAnnotations()
 	// get Prometheus url
 	prometheusUrl, succeedFlag := getPrometheusUrl(annotations)
 
@@ -184,4 +185,44 @@ func setLogLevel() {
 		log.Printf("Setting global log level to '%s'", logLevel)
 		log.SetLevelString(logLevel)
 	}
+}
+
+func getRetryParams() (int, float64){
+	retryCount, okCount := os.LookupEnv("RETRY_COUNT")
+	retryDelay, okDelay := os.LookupEnv("RETRY_DELAY")
+	retryCountEnv := 5
+	retryDelayEnv := 10.0
+	if okCount {
+		retryCountEnvInt, errInt := strconv.Atoi(retryCount)
+		if errInt != nil {
+			retryCountEnv = retryCountEnvInt
+		}
+	}
+	if okDelay {
+		retryDelayEnvFloat, errFloat := strconv.ParseFloat(retryDelay, 64)
+		if errFloat != nil {
+			retryDelayEnv = retryDelayEnvFloat
+		}
+	}
+	return retryCountEnv, retryDelayEnv
+}
+
+func retryGetAnnotations() map[string]string {
+	// get retry params
+	retryCount, retryDelay := getRetryParams()
+	log.Infof("retryCount = ", retryCount)
+	log.Infof("retryDelay = ", retryDelay)
+	// get annotations from pod kube config
+	annotations := map[string]string{}
+	for i := 0; i <= retryCount; i++ {
+		annotations = getPodAnnotations()
+		if _, ok := annotations["sidecar/listen-port"]; ok {
+			log.Infof("Good annotation!")
+			break
+		}
+		log.Infof("Annotation doesn't include all the information that's needed. Sleep %v seconds and retry %v.", retryDelay, i)
+		// sleep for 30 seconds or how long queryInterval is
+		time.Sleep(time.Second * time.Duration(retryDelay))
+	}
+	return annotations
 }
