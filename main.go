@@ -205,7 +205,7 @@ func getRetryParams() (int, float64) {
 		if errFloat == nil {
 			retryDelayEnv = retryDelayEnvFloat
 		} else {
-			log.Warnf("Error converting RETRY_DELAY to an integer. Set to default RETRY_DELAY=10.0.", )
+			log.Warnf("Error converting RETRY_DELAY to a float. Set to default RETRY_DELAY=10.0.")
 		}
 	}
 	return retryCountEnv, retryDelayEnv
@@ -221,11 +221,11 @@ func retryGetAnnotations() map[string]string {
 	for i := 0; i <= retryCount; i++ {
 		annotations := getPodAnnotations()
 		if _, ok := annotations["sidecar/listen-port"]; ok {
-			log.Debugf("Good annotation!")
+			log.Debugf("Good annotation! annotations = ", annotations)
 			return annotations
 		}
 		log.Infof("Annotation doesn't include all the information that's needed. Sleep %v seconds and retry %v.", retryDelay, i)
-		// sleep for 30 seconds or how long queryInterval is
+		// sleep for 10 seconds or how long retry_delay is
 		time.Sleep(time.Second * time.Duration(retryDelay))
 	}
 	return annotations

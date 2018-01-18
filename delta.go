@@ -34,7 +34,7 @@ func calculateDelta(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPr
 			}
 		}
 	}
-	log.Infof("Successfully calculated delta for rule ", rule.Name)
+	log.Debugf("Successfully calculated delta for rule ", rule.Name)
 	log.Debugf("Delta metrics = ", convertMetricFamiliesIntoTextString(newDeltaMetrics))
 	return newDeltaMetrics
 }
