@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,8 +21,8 @@ import (
 func main() {
 	// set log level
 	setLogLevel()
-	// get annotations from pod kube config
-	annotations := getPodAnnotations()
+	// retry to get annotations
+	annotations := retryGetAnnotations()
 	// get Prometheus url
 	prometheusUrl, succeedFlag := getPrometheusUrl(annotations)
 
@@ -46,10 +47,11 @@ func main() {
 
 	// Infinite for loop to scrape prometheus metrics and calculate rate every 30 seconds
 	for {
-		newRateMetricStringTotal := ``
-		newAvgMetricStringTotal := ``
-		newRatioMetricStringTotal := ``
-		newDeltaRatioMetricStringTotal := ``
+		newRateMetrics := []*prometheusClient.MetricFamily{}
+		newAvgMetrics := []*prometheusClient.MetricFamily{}
+		newRatioMetrics := []*prometheusClient.MetricFamily{}
+		newDeltaRatioMetrics := []*prometheusClient.MetricFamily{}
+		newDeltaMetrics := []*prometheusClient.MetricFamily{}
 
 		// sleep for 30 seconds or how long queryInterval is
 		time.Sleep(time.Second * time.Duration(queryInterval))
@@ -63,26 +65,20 @@ func main() {
 		for _, rule := range sidecarRules {
 			switch rule.Function {
 			case "rate":
-				newRateMetrics := calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rule)
-				newRateMetricString := convertMetricFamiliesIntoTextString(newRateMetrics)
-				newRateMetricStringTotal += newRateMetricString
+				newRateMetrics = append(newRateMetrics, calculateRate(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, queryInterval, rule)...)
 			case "avg":
-				newAvgMetrics := calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
-				newAvgMetricString := convertMetricFamiliesIntoTextString(newAvgMetrics)
-				newAvgMetricStringTotal += newAvgMetricString
+				newAvgMetrics = append(newAvgMetrics, calculateAvg(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
 			case "ratio":
-				newRatioMetrics := calculateRatio(newPrometheusMetricsWithNoHistogramSummary, rule)
-				newRatioMetricString := convertMetricFamiliesIntoTextString(newRatioMetrics)
-				newRatioMetricStringTotal += newRatioMetricString
+				newRatioMetrics = append(newRatioMetrics, calculateRatio(newPrometheusMetricsWithNoHistogramSummary, rule)...)
 			case "deltaRatio":
-				newDeltaRatioMetrics := calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)
-				newDeltaRatioMetricString := convertMetricFamiliesIntoTextString(newDeltaRatioMetrics)
-				newDeltaRatioMetricStringTotal += newDeltaRatioMetricString
+				newDeltaRatioMetrics = append(newDeltaRatioMetrics, calculateDeltaRatio(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
+			case "delta":
+				newDeltaMetrics = append(newDeltaMetrics, calculateDelta(newPrometheusMetricsWithNoHistogramSummary, oldPrometheusMetricsWithNoHistogramSummary, rule)...)
 			default:
 				log.Errorf("Rule %v with invalid function %v", rule.Name, rule.Function)
 			}
 		}
-		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + newRateMetricStringTotal + newAvgMetricStringTotal + newRatioMetricStringTotal + newDeltaRatioMetricStringTotal
+		oldPrometheusMetricString = convertMetricFamiliesIntoTextString(newPrometheusMetrics) + convertMetricFamiliesIntoTextString(newRateMetrics) + convertMetricFamiliesIntoTextString(newAvgMetrics) + convertMetricFamiliesIntoTextString(newRatioMetrics) + convertMetricFamiliesIntoTextString(newDeltaRatioMetrics) + convertMetricFamiliesIntoTextString(newDeltaMetrics)
 		// set current to old to prepare new collection in next for loop
 		oldPrometheusMetrics = newPrometheusMetrics
 	}
@@ -189,4 +185,48 @@ func setLogLevel() {
 		log.Printf("Setting global log level to '%s'", logLevel)
 		log.SetLevelString(logLevel)
 	}
+}
+
+func getRetryParams() (int, float64) {
+	retryCount, okCount := os.LookupEnv("RETRY_COUNT")
+	retryDelay, okDelay := os.LookupEnv("RETRY_DELAY")
+	retryCountEnv := 5
+	retryDelayEnv := 10.0
+	if okCount {
+		retryCountEnvInt, errInt := strconv.Atoi(retryCount)
+		if errInt == nil {
+			retryCountEnv = retryCountEnvInt
+		} else {
+			log.Warnf("Error converting RETRY_COUNT to an integer. Set to default RETRY_COUNT=5.")
+		}
+	}
+	if okDelay {
+		retryDelayEnvFloat, errFloat := strconv.ParseFloat(retryDelay, 64)
+		if errFloat == nil {
+			retryDelayEnv = retryDelayEnvFloat
+		} else {
+			log.Warnf("Error converting RETRY_DELAY to a float. Set to default RETRY_DELAY=10.0.")
+		}
+	}
+	return retryCountEnv, retryDelayEnv
+}
+
+func retryGetAnnotations() map[string]string {
+	// get retry params
+	retryCount, retryDelay := getRetryParams()
+	log.Infof("retryCount = ", retryCount)
+	log.Infof("retryDelay = ", retryDelay)
+	// get annotations from pod kube config
+	annotations := map[string]string{}
+	for i := 0; i <= retryCount; i++ {
+		annotations := getPodAnnotations()
+		if _, ok := annotations["sidecar/listen-port"]; ok {
+			log.Debugf("Good annotation! annotations = ", annotations)
+			return annotations
+		}
+		log.Infof("Annotation doesn't include all the information that's needed. Sleep %v seconds and retry %v.", retryDelay, i)
+		// sleep for 10 seconds or how long retry_delay is
+		time.Sleep(time.Second * time.Duration(retryDelay))
+	}
+	return annotations
 }

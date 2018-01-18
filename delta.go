@@ -7,8 +7,8 @@ import (
 	log "github.hpe.com/kronos/kelog"
 )
 
-func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
-	newAvgMetrics := []*prometheusClient.MetricFamily{}
+func calculateDelta(newPrometheusMetrics []*prometheusClient.MetricFamily, oldPrometheusMetrics []*prometheusClient.MetricFamily, rule SidecarRule) []*prometheusClient.MetricFamily {
+	newDeltaMetrics := []*prometheusClient.MetricFamily{}
 	// find old value and new value
 	for _, pm := range newPrometheusMetrics {
 		if *pm.Name != rule.Parameters["name"] {
@@ -17,24 +17,24 @@ func calculateAvg(newPrometheusMetrics []*prometheusClient.MetricFamily, oldProm
 		for _, newM := range pm.Metric {
 			oldValueFloat, succeedOld := findOldValueWithMetricFamily(oldPrometheusMetrics, newM, *pm.Name, *pm.Type)
 			if succeedOld {
-				// calculate avg
+				// calculate delta
 				newValueFloat, succeedNew := getValueBasedOnType(*pm.Type, *newM)
 				if !succeedNew {
 					log.Warnf("Error getting values from new prometheus metric: %v", *pm.Name)
 					continue
 				}
-				// check if MF is counter type, if it is check if it got reset
 				if *pm.Type == prometheusClient.MetricType_COUNTER && newValueFloat < oldValueFloat {
 					log.Warnf("Counter %v has been reset", *pm.Name)
 					continue
 				}
-				avg := (newValueFloat + oldValueFloat) / 2.0
-				// store avg metric into a new metric family
-				newAvgMetrics = append(newAvgMetrics, createNewMetricFamilies(rule.Name, newM.Label, avg))
+				delta := newValueFloat - oldValueFloat
+
+				// store delta metric into a new metric family
+				newDeltaMetrics = append(newDeltaMetrics, createNewMetricFamilies(rule.Name, newM.Label, delta))
 			}
 		}
 	}
-	log.Debugf("Successfully calculated avg for rule ", rule.Name)
-	log.Debugf("Avg metrics = ", convertMetricFamiliesIntoTextString(newAvgMetrics))
-	return newAvgMetrics
+	log.Debugf("Successfully calculated delta for rule ", rule.Name)
+	log.Debugf("Delta metrics = ", convertMetricFamiliesIntoTextString(newDeltaMetrics))
+	return newDeltaMetrics
 }
