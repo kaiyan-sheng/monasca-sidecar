@@ -118,10 +118,10 @@ func getPrometheusUrl(annotations map[string]string) (string, bool) {
 }
 
 func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily {
-	// http.get prometheus url
+	// http.get prometheus url with retries
 	retryCount, retryDelay := getRetryParams()
 	resp := &http.Response{}
-	for i := 0; i <= retryCount; i++ {
+	for i := 1; i <= retryCount; i++ {
 		resp, errGetProm := http.Get(prometheusUrl)
 		if errGetProm == nil {
 			log.Debugf("Http Get works! resp = ", resp)
@@ -130,6 +130,9 @@ func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily
 		log.Infof("Error scraping prometheus endpoint. Retrying. Sleep %v seconds and retry %v.", retryDelay, i)
 		// sleep for 10 seconds or how long retry_delay is
 		time.Sleep(time.Second * time.Duration(retryDelay))
+		if i == retryCount {
+			log.Fatalf("Failed to scrape prometheus endpoint %v with %v times of retries.", prometheusUrl, retryCount)
+		}
 	}
 
 	if resp.ContentLength == 0 {
@@ -228,7 +231,7 @@ func retryGetAnnotations() map[string]string {
 	log.Infof("retryDelay = ", retryDelay)
 	// get annotations from pod kube config
 	annotations := map[string]string{}
-	for i := 0; i <= retryCount; i++ {
+	for i := 1; i <= retryCount; i++ {
 		annotations := getPodAnnotations()
 		if _, ok := annotations["sidecar/port"]; ok {
 			log.Debugf("Good annotation! annotations = ", annotations)
