@@ -37,11 +37,9 @@ func TestParseFloat(t *testing.T) {
 
 func TestGetPrometheusUrlFromAnnotations(t *testing.T) {
 	annotations1 := map[string]string{}
-	annotations1["prometheus.io/port"] = "9999"
-	annotations1["prometheus.io/path"] = "/support/metrics"
 	annotations1["prometheus.io/scrape"] = "true"
-	annotations1["sidecar/query-interval"] = "30.0"
-	annotations1["sidecar/listen-port"] = "5556"
+	annotations1["sidecar/port"] = "5556"
+	annotations1["sidecar/path"] = "/support/metrics"
 	annotations1["sidecar/rules"] = ""
 	prometheusUrl1, flag1 := getPrometheusUrl(annotations1)
 	assert.True(t, flag1)
@@ -49,10 +47,8 @@ func TestGetPrometheusUrlFromAnnotations(t *testing.T) {
 
 	// use default prometheus.io/path
 	annotations2 := map[string]string{}
-	annotations2["prometheus.io/port"] = "9999"
 	annotations2["prometheus.io/scrape"] = "true"
-	annotations2["sidecar/query-interval"] = "30.0"
-	annotations2["sidecar/listen-port"] = "5556"
+	annotations2["sidecar/port"] = "5556"
 	annotations2["sidecar/rules"] = ""
 	prometheusUrl2, flag2 := getPrometheusUrl(annotations2)
 	assert.True(t, flag2)
@@ -62,8 +58,7 @@ func TestGetPrometheusUrlFromAnnotations(t *testing.T) {
 	annotations3 := map[string]string{}
 	annotations3["prometheus.io/port"] = "9999"
 	annotations3["prometheus.io/path"] = "/support/metrics"
-	annotations3["sidecar/query-interval"] = "30.0"
-	annotations3["sidecar/listen-port"] = "5556"
+	annotations3["sidecar/port"] = "5556"
 	annotations3["sidecar/rules"] = ""
 	prometheusUrl3, flag3 := getPrometheusUrl(annotations3)
 	assert.False(t, flag3)

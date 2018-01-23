@@ -86,16 +86,16 @@ func main() {
 
 func getPrometheusUrl(annotations map[string]string) (string, bool) {
 	//get prometheus url
-	prometheusPort := annotations["sidecar/listen-port"]
+	prometheusPort := annotations["sidecar/port"]
 	if prometheusPort == "" {
-		log.Errorf("\"sidecar/listen-port\" can not be empty.")
+		log.Errorf("\"sidecar/port\" can not be empty.")
 		return "", false
 	}
 
-	prometheusPath := annotations["prometheus.io/path"]
+	prometheusPath := annotations["sidecar/path"]
 	if prometheusPath == "" {
 		prometheusPath = "/metrics"
-		log.Infof("\"prometheus.io/path\" is empty, set to default \"/metrics\" for prometheus path.")
+		log.Infof("\"sidecar/path\" is empty, set to default \"/metrics\" for sidecar path.")
 	}
 
 	// check annotations
@@ -220,7 +220,7 @@ func retryGetAnnotations() map[string]string {
 	annotations := map[string]string{}
 	for i := 0; i <= retryCount; i++ {
 		annotations := getPodAnnotations()
-		if _, ok := annotations["sidecar/listen-port"]; ok {
+		if _, ok := annotations["sidecar/port"]; ok {
 			log.Debugf("Good annotation! annotations = ", annotations)
 			return annotations
 		}
