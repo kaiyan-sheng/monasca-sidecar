@@ -119,7 +119,19 @@ func getPrometheusUrl(annotations map[string]string) (string, bool) {
 
 func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily {
 	// http.get prometheus url
-	resp := retryHttpGetPrometheusUrl(prometheusUrl)
+	retryCount, retryDelay := getRetryParams()
+	resp := &http.Response{}
+	for i := 0; i <= retryCount; i++ {
+		resp, errGetProm := http.Get(prometheusUrl)
+		if errGetProm == nil {
+			log.Debugf("Http Get works! resp = ", resp)
+			break
+		}
+		log.Infof("Error scraping prometheus endpoint. Retrying. Sleep %v seconds and retry %v.", retryDelay, i)
+		// sleep for 10 seconds or how long retry_delay is
+		time.Sleep(time.Second * time.Duration(retryDelay))
+	}
+
 	if resp.ContentLength == 0 {
 		log.Warnf("No prometheus metric from %v", prometheusUrl)
 	}
@@ -227,21 +239,4 @@ func retryGetAnnotations() map[string]string {
 		time.Sleep(time.Second * time.Duration(retryDelay))
 	}
 	return annotations
-}
-
-func retryHttpGetPrometheusUrl(prometheusUrl string) *http.Response {
-	// get retry params
-	retryCount, retryDelay := getRetryParams()
-	resp := &http.Response{}
-	for i := 0; i <= retryCount; i++ {
-		resp, errGetProm := http.Get(prometheusUrl)
-		if errGetProm == nil {
-			log.Debugf("Http Get works! resp = ", resp)
-			return resp
-		}
-		log.Infof("Error scraping prometheus endpoint. Retrying. Sleep %v seconds and retry %v.", retryDelay, i)
-		// sleep for 10 seconds or how long retry_delay is
-		time.Sleep(time.Second * time.Duration(retryDelay))
-	}
-	return resp
 }
