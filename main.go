@@ -120,31 +120,29 @@ func getPrometheusUrl(annotations map[string]string) (string, bool) {
 func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily {
 	// http.get prometheus url with retries
 	retryCount, retryDelay := getRetryParams()
-	resp := &http.Response{}
 	for i := 1; i <= retryCount; i++ {
 		resp, errGetProm := http.Get(prometheusUrl)
-		if errGetProm == nil && resp.ContentLength > 0 {
+		if errGetProm == nil && resp.ContentLength != 0 {
 			log.Debugf("Http Get works! resp = ", resp)
 			defer resp.Body.Close()
-			break
+			respBody, errRead := ioutil.ReadAll(resp.Body)
+			if errRead != nil {
+				log.Fatalf("Error reading response body")
+			}
+			result, errParse := parsePrometheusMetricsToMetricFamilies(string(respBody))
+			if errParse != nil {
+				log.Fatalf("Error parsing prometheus metrics to metric families")
+			}
+			return result
 		}
-		log.Infof("Error scraping prometheus endpoint. Retrying. Sleep %v seconds and retry %v.", retryDelay, i)
+		log.Infof("Error scraping prometheus endpoint %v. Retrying. Sleep %v seconds and retry %v.", prometheusUrl, retryDelay, i)
 		// sleep for 10 seconds or how long retry_delay is
 		time.Sleep(time.Second * time.Duration(retryDelay))
 		if i == retryCount {
 			log.Fatalf("Failed to scrape prometheus endpoint %v with %v times of retries.", prometheusUrl, retryCount)
 		}
 	}
-
-	respBody, errRead := ioutil.ReadAll(resp.Body)
-	if errRead != nil {
-		log.Fatalf("Error reading response body")
-	}
-	result, errParse := parsePrometheusMetricsToMetricFamilies(string(respBody))
-	if errParse != nil {
-		log.Fatalf("Error parsing prometheus metrics to metric families")
-	}
-	return result
+	return []*prometheusClient.MetricFamily{}
 }
 
 func getPodAnnotations() map[string]string {
