@@ -205,7 +205,7 @@ func getRetryParams() (int, float64) {
 		if errInt == nil {
 			retryCountEnv = retryCountEnvInt
 		} else {
-			log.Warnf("Error converting RETRY_COUNT to an integer. Set to default RETRY_COUNT=5.")
+			log.Warnf("Error converting RETRY_COUNT to an integer. Set to default RETRY_COUNT = %v.", retryCountEnv)
 		}
 	}
 	if okDelay {
@@ -213,7 +213,7 @@ func getRetryParams() (int, float64) {
 		if errFloat == nil {
 			retryDelayEnv = retryDelayEnvFloat
 		} else {
-			log.Warnf("Error converting RETRY_DELAY to a float. Set to default RETRY_DELAY=10.0.")
+			log.Warnf("Error converting RETRY_DELAY to a float. Set to default RETRY_DELAY = %v.", retryDelayEnv)
 		}
 	}
 	return retryCountEnv, retryDelayEnv
