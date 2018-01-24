@@ -123,8 +123,9 @@ func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily
 	resp := &http.Response{}
 	for i := 1; i <= retryCount; i++ {
 		resp, errGetProm := http.Get(prometheusUrl)
-		if errGetProm == nil {
+		if errGetProm == nil && resp.ContentLength > 0 {
 			log.Debugf("Http Get works! resp = ", resp)
+			defer resp.Body.Close()
 			break
 		}
 		log.Infof("Error scraping prometheus endpoint. Retrying. Sleep %v seconds and retry %v.", retryDelay, i)
@@ -135,10 +136,6 @@ func getPrometheusMetrics(prometheusUrl string) []*prometheusClient.MetricFamily
 		}
 	}
 
-	if resp.ContentLength == 0 {
-		log.Warnf("No prometheus metric from %v", prometheusUrl)
-	}
-	defer resp.Body.Close()
 	respBody, errRead := ioutil.ReadAll(resp.Body)
 	if errRead != nil {
 		log.Fatalf("Error reading response body")
