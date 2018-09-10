@@ -1,6 +1,16 @@
 # Monasca Sidecar
-A push-pull metric forwarder bridging Monasca and Prometheus. Monasca-sidecar exists as a side container in the same pod with the target container. It gets the pod name and namespace to read annotations.
-From annotations, monasca-sidecar will get the prometheus endpoint and sidecar rules.
+Monasca sidecar is a metric transformer and forwarder bridging Monasca and Prometheus. 
+Prometheus provides a functional expression language that lets the user select and aggregate time series data in real time. 
+Since monasca does not support prometheus query language, monasca-sidecar is introduced to do similar calculations to 
+give user more functionalities to get useful metrics. 
+For example, we don't have the ability to collect prometheus metrics on request rate directly but we can collect 
+request total count and request time prometheus metrics, and use monasca-sidecar to calculate rate on these two metrics to get rate. 
+
+Monasca-sidecar exists as a side container in the same pod with the target container. 
+It gets the exposed pod name and namespace from environment variables in order to get annotations. 
+From annotations, monasca-sidecar will get sidecar endpoint, prometheus endpoint and sidecar rules. 
+This sidecar container will scrape sidecar endpoint to get prometheus metrics, do calculations 
+based on the rules and then push new metrics onto the defined prometheus endpoint for monasca-agent to scrape later. 
 
 ## Usage
 
@@ -85,7 +95,7 @@ sidecar_container:
   retry_count: 5
   retry_delay: 10.0
   image:
-    repository: 537391133114.dkr.ecr.us-west-1.amazonaws.com/staging/monasca/monasca-sidecar
+    repository: monasca/monasca-sidecar
     tag: 0.0.0-6ac7697938efc1
     pullPolicy: Always
   resources:
